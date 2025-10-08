@@ -32,6 +32,8 @@ enum ConnectorType {
 model User {
   id            String    @id @default(cuid())
   email         String    @unique
+  name          String?
+  image         String?
   passwordHash  String?
   role          UserRole  @default(DRIVER)
   emailVerified DateTime?
