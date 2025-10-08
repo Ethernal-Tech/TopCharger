@@ -13,3 +13,73 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+enum UserRole {
+  HOST
+  DRIVER
+  ADMIN
+}
+
+enum ConnectorType {
+  TYPE2
+  CCS2
+  CHADEMO
+  CCS1
+  NEMA14_50
+  SCHUKO
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  passwordHash  String?
+  role          UserRole  @default(DRIVER)
+  emailVerified DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  host          HostProfile?
+  driver        DriverProfile?
+}
+
+model HostProfile {
+  userId          String   @id
+  user            User     @relation(fields: [userId], references: [id])
+  businessName    String
+  bankAccountIban String?
+  bankAccountName String?
+  chargers        Charger[]
+}
+
+model DriverProfile {
+  userId             String        @id
+  user               User          @relation(fields: [userId], references: [id])
+  fullName           String?
+  phone              String?
+  solanaPubkey       String?
+  preferredConnector ConnectorType?
+  vehicles           Vehicle[]
+}
+
+model Vehicle {
+  id        String         @id @default(cuid())
+  driverId  String
+  Driver    DriverProfile  @relation(fields: [driverId], references: [userId])
+  model     String?
+  connector ConnectorType
+  createdAt DateTime @default(now())
+}
+
+model Charger {
+  id          String      @id @default(cuid())
+  hostId      String
+  host        HostProfile @relation(fields: [hostId], references: [userId])
+  name        String
+  latitude    Float
+  longitude   Float
+  pricePerKwh Float
+  connector   ConnectorType
+  available   Boolean     @default(true)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
