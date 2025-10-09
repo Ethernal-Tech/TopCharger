@@ -9,7 +9,7 @@ import Profile from "./pages/Profile.jsx";
 import AddCharger from './pages/AddCharger.jsx';
 import MyChargers from './pages/MyChargers.jsx';
 import Navbar from './components/Navbar.jsx';
-import { WalletProvider } from "./context/WalletContext.jsx";
+import WalletProvider from "./context/WalletProvider.jsx";
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>

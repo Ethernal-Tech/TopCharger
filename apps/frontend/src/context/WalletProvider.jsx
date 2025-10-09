@@ -1,6 +1,7 @@
 // src/context/WalletProvider.jsx
-import { useState, useEffect } from "react";
-import WalletContext from "./WalletContext";
+import { createContext, useContext, useState, useEffect } from "react";
+
+export const WalletContext = createContext();
 
 export default function WalletProvider({ children }) {
     const [walletAddress, setWalletAddress] = useState(null);
@@ -41,3 +42,6 @@ export default function WalletProvider({ children }) {
         </WalletContext.Provider>
     );
 }
+
+// optional: custom hook for easier usage
+export const useWallet = () => useContext(WalletContext);

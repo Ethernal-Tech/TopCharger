@@ -1,15 +1,7 @@
-// src/components/Navbar.jsx
-import { useWallet } from "../context/WalletContext.jsx";
+import { useWallet } from "../context/WalletProvider.jsx"; // correct path
 
 export default function Navbar() {
-    const { walletAddress, setWalletAddress } = useWallet();
-
-    const connectWallet = async () => {
-        const { solana } = window;
-        if (!solana) return alert("Phantom wallet not found!");
-        const response = await solana.connect();
-        setWalletAddress(response.publicKey.toString());
-    };
+    const { walletAddress, connectWallet } = useWallet(); // use connectWallet, not setWalletAddress
 
     return (
         <nav className="p-4 bg-green-700 text-white flex justify-between">

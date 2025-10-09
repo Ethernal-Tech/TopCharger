@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useWallet } from "../context/WalletContext.jsx";
+import { useWallet } from "../hooks/useWallet.js";
 
 export default function RegisterSeller() {
     const { walletAddress } = useWallet(); // ✅ get wallet from navbar/context
