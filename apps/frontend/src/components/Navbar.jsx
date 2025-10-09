@@ -1,7 +1,7 @@
-import { useWallet } from "../context/WalletProvider.jsx"; // correct path
+import { useWallet } from "../hooks/useWallet.js";
 
 export default function Navbar() {
-    const { walletAddress, connectWallet } = useWallet(); // use connectWallet, not setWalletAddress
+    const { walletAddress, connectWallet } = useWallet();
 
     return (
         <nav className="p-4 bg-green-700 text-white flex justify-between">
