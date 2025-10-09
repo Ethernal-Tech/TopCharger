@@ -1,0 +1,55 @@
+---
+name: Lint
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+jobs:
+  backend:
+    name: Run lint backend
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Setup Node environment
+        uses: actions/setup-node@v5
+        with:
+          node-version: ${{ vars.NODE_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          cd apps/backend
+          npm ci
+
+      - name: Run ESLint
+        run: |
+          cd apps/backend
+          npx eslint ./src --ext .js,.jsx,.ts,.tsx 
+
+  frontend:
+    name: Run lint frontend
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Setup Node environment
+        uses: actions/setup-node@v5
+        with:
+          node-version: ${{ vars.NODE_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          cd apps/frontend
+          npm ci
+
+      - name: Run ESLint
+        run: |
+          cd apps/frontend
+          npx eslint ./src --ext .js,.jsx,.ts,.tsx 
+
