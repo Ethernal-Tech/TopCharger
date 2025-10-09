@@ -1,9 +1,12 @@
-// Uses the generated client at src/generated/prisma (per your schema.prisma "output")
 import { PrismaClient } from "@/generated/prisma";
 
-export const prisma =
-  (globalThis as any).prisma || new PrismaClient();
+// Declare a typed global cache for the Prisma client
+const globalForPrisma = globalThis as unknown as {
+  prisma?: PrismaClient;
+};
+
+export const prisma = globalForPrisma.prisma ?? new PrismaClient();
 
 if (process.env.NODE_ENV !== "production") {
-  (globalThis as any).prisma = prisma;
+  globalForPrisma.prisma = prisma;
 }

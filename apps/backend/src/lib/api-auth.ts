@@ -1,12 +1,13 @@
+import { NextRequest } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { jwtVerify } from "jose";
 
 // Try cookie session first; if absent, try Authorization Bearer
-export async function requireUserId(req: Request) {
+export async function requireUserId(req: NextRequest) {
   // 1) cookie session (NextAuth)
   const session = await getServerSession(authOptions);
-  if (session?.user?.id) return String((session.user as any).id);
+  if (session?.user?.id) return session.user.id;
 
   // 2) bearer token
   const auth = req.headers.get("authorization") || "";
@@ -17,7 +18,7 @@ export async function requireUserId(req: Request) {
       const { payload } = await jwtVerify(token, secret);
       if (payload?.sub) return String(payload.sub);
     } catch {
-      // fall through
+      // ignore and fall through
     }
   }
 
