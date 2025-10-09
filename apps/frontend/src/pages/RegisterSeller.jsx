@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useWallet } from "../context/WalletContext.jsx";
 
 export default function RegisterSeller() {

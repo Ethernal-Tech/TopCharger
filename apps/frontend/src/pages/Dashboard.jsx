@@ -2,59 +2,12 @@
 import { useState, useEffect } from "react";
 import { GoogleMap, LoadScript, Marker } from "@react-google-maps/api";
 
-const containerStyle = {
-    width: "100%",
-    height: "400px",
-};
-
 const BACKEND = "http://localhost:3000";
 const FRONTEND = "http://localhost:5173";
 
 export default function Dashboard() {
     const [walletAddress, setWalletAddress] = useState(null);
     const [googleToken, setGoogleToken] = useState(null);
-    const [chargers, setChargers] = useState([
-        {
-            id: 1,
-            name: "Charger 1",
-            address: "123 Elm St, San Francisco, CA",
-            status: "Open",
-            lat: 37.7749,
-            lng: -122.4194,
-        },
-        {
-            id: 2,
-            name: "Charger 2",
-            address: "455 Oak St, San Francisco, CA",
-            status: "Occupied",
-            lat: 37.7765,
-            lng: -122.417,
-        },
-        {
-            id: 3,
-            name: "Charger 3",
-            address: "789 Pine St, San Francisco, CA",
-            status: "Open",
-            lat: 37.7725,
-            lng: -122.414,
-        },
-        {
-            id: 4,
-            name: "Charger 4",
-            address: "101 Maple St, San Francisco, CA",
-            status: "Open",
-            lat: 37.77,
-            lng: -122.421,
-        },
-        {
-            id: 5,
-            name: "Charger Novi Sad",
-            address: "Novi Sad, Serbia",
-            status: "Open",
-            lat: 45.2517,
-            lng: 19.8369,
-        },
-    ]);
 
     // Detect Phantom wallet
     useEffect(() => {
@@ -133,39 +86,6 @@ export default function Dashboard() {
                 </button>
             </section>
 
-            {/* Map */}
-            <section className="mb-6">
-                <LoadScript googleMapsApiKey={import.meta.env.VITE_GOOGLE_MAPS_API_KEY}>
-                    <GoogleMap mapContainerStyle={containerStyle} center={{ lat: 45.2517, lng: 19.8369 }} zoom={5}>
-                        {chargers.map((c) => (
-                            <Marker key={c.id} position={{ lat: c.lat, lng: c.lng }} label={c.name} />
-                        ))}
-                    </GoogleMap>
-                </LoadScript>
-            </section>
-
-            {/* Charger Table */}
-            <section>
-                <h2 className="text-xl font-bold text-green-900 mb-2">Chargers</h2>
-                <table className="w-full bg-white rounded shadow overflow-hidden">
-                    <thead className="bg-green-700 text-white">
-                        <tr>
-                            <th className="p-2">Name</th>
-                            <th className="p-2">Address</th>
-                            <th className="p-2">Status</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {chargers.map((c) => (
-                            <tr key={c.id} className="border-b">
-                                <td className="p-2">{c.name}</td>
-                                <td className="p-2">{c.address}</td>
-                                <td className="p-2">{c.status}</td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </section>
         </div>
     );
 }

@@ -3,7 +3,7 @@ import React, { useState } from "react";
 
 export default function MyChargers() {
     // Example static charger data (you can later fetch from API)
-    const [chargers, setChargers] = useState([
+    const [chargers] = useState([
         {
             id: 1,
             name: "Downtown Charger 1",
@@ -70,8 +70,8 @@ export default function MyChargers() {
                                     <td className="p-3">
                                         <span
                                             className={`px-3 py-1 rounded-full font-semibold ${charger.status === "Open"
-                                                    ? "bg-green-600 text-white"
-                                                    : "bg-gray-300 text-gray-700"
+                                                ? "bg-green-600 text-white"
+                                                : "bg-gray-300 text-gray-700"
                                                 }`}
                                         >
                                             {charger.status}

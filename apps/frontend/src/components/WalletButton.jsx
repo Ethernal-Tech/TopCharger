@@ -1,3 +1,4 @@
+import { useState } from "react";
 export default function WalletButton({ onConnect }) {
     const [walletAddress, setWalletAddress] = useState(null);
 
@@ -8,7 +9,7 @@ export default function WalletButton({ onConnect }) {
                 const response = await solana.connect();
                 setWalletAddress(response.publicKey.toString());
                 if (onConnect) onConnect(response.publicKey.toString());
-            } catch (err) {
+            } catch {
                 console.error("User rejected connection");
             }
         } else {
