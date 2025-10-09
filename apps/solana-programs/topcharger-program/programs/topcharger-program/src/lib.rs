@@ -5,6 +5,42 @@ declare_id!("FPmUDY73xYusKgVyAgKtFhv18vC3gaHWPm2BmWko8JZ7"); // replace with you
 #[program]
 pub mod topcharger_program {
     use super::*;
+
+        /// Register a user (host or driver)
+    pub fn register_user(
+        ctx: Context<RegisterUser>,
+        role: u8,               // 0 = driver, 1 = host
+        user_id_hash: [u8; 32], // hashed UUID/email
+    ) -> Result<()> {
+
+        Ok(())
+    }
+
+    /// Host adds a charger
+    pub fn create_charger(
+        ctx: Context<CreateCharger>,
+        user_id_hash: [u8; 32],
+        charger_id: u64,
+        power_kw: u16,
+        supply_type: u8, // e.g. 0=AC, 1=DC
+        price: u64,
+        location: String,
+    ) -> Result<()> {
+
+        Ok(())
+    }
+
+    /// Driver reserves a charger (allocates)
+    pub fn reserve_charger(ctx: Context<ReserveCharger>, driver_user_hash: [u8; 32]) -> Result<()> {
+
+        Ok(())
+    }
+
+    /// Driver confirms charging complete
+    pub fn confirm_charge(ctx: Context<ConfirmCharge>, was_correct: bool) -> Result<()> {
+        
+        Ok(())
+    }
 }
 
 #[derive(Accounts)]
