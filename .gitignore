@@ -1,0 +1,4 @@
+
+# Backend envs (do NOT commit real secrets)
+apps/backend/.env
+apps/backend/.env.local
