@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
 import { createHostProfileSchema } from "@/lib/validation";
 import { requireUserId } from "@/lib/api-auth";
-import { badRequest, created, ok, options } from "@/lib/http";
+import { badRequest, created, options } from "@/lib/http";
 
 export async function OPTIONS() { return options(); }
 
