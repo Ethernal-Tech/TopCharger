@@ -2,58 +2,75 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
 import { upsertDriverProfileSchema } from "@/lib/validation";
 import { requireUserId } from "@/lib/api-auth";
-import { badRequest, created, options, forbidden } from "@/lib/http";
+import { badRequest, created, options } from "@/lib/http";
 
 export function OPTIONS() {
   return options();
 }
 
 export async function POST(req: NextRequest) {
-  const userId = await requireUserId(req);
+  try {
+    const userId = await requireUserId(req);
 
-  const body = await req.json().catch(() => null);
-  const parsed = upsertDriverProfileSchema.safeParse(body);
-  if (!parsed.success) {
-    const issue = parsed.error.issues[0];
-    return badRequest(issue?.message || "Invalid payload");
-  }
+    const body = await req.json().catch(() => null);
+    const parsed = upsertDriverProfileSchema.safeParse(body);
+    if (!parsed.success) {
+      const issue = parsed.error.issues[0];
+      return badRequest(issue?.message || "Invalid payload");
+    }
 
-  // Read current role
-  const existing = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { role: true },
-  });
-  if (!existing) return forbidden("User not found");
+    // Read current role
+    const existing = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { role: true },
+    });
 
-  // Upsert driver profile
-  const user = await prisma.user.update({
-    where: { id: userId },
-    data: {
-      // Set role to DRIVER only if user is not already HOST/ADMIN
-      role: existing.role === "HOST" || existing.role === "ADMIN" ? undefined : "DRIVER",
-      driver: {
-        upsert: {
-          create: {
-            fullName: parsed.data.fullName,
-            phone: parsed.data.phone,
-            solanaPubkey: parsed.data.solanaPubkey,
-            preferredConnector: parsed.data.preferredConnector,
-          },
-          update: {
-            fullName: parsed.data.fullName,
-            phone: parsed.data.phone,
-            solanaPubkey: parsed.data.solanaPubkey,
-            preferredConnector: parsed.data.preferredConnector,
+    if (!existing) {
+      return new Response(JSON.stringify({ error: "User not found" }), {
+        status: 404,
+      });
+    }
+
+    // STRICT guard:
+    // Allow only if role is UNSET or already DRIVER; otherwise block with 409.
+    if (existing.role !== "UNSET" && existing.role !== "DRIVER") {
+      return new Response(
+        JSON.stringify({ error: "Role conflict: user is not a DRIVER" }),
+        { status: 409 }
+      );
+    }
+
+    // Upsert driver profile; set role=DRIVER only when currently UNSET
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        role: existing.role === "UNSET" ? "DRIVER" : undefined,
+        driver: {
+          upsert: {
+            create: {
+              fullName: parsed.data.fullName,
+              phone: parsed.data.phone,
+              solanaPubkey: parsed.data.solanaPubkey,
+              preferredConnector: parsed.data.preferredConnector,
+            },
+            update: {
+              fullName: parsed.data.fullName,
+              phone: parsed.data.phone,
+              solanaPubkey: parsed.data.solanaPubkey,
+              preferredConnector: parsed.data.preferredConnector,
+            },
           },
         },
       },
-    },
-    include: { driver: true },
-  });
+      include: { driver: true },
+    });
 
-  return created({
-    userId: userId,
-    role: user.role,
-    driver: user.driver,
-  });
+    return created({ userId, role: user.role, driver: user.driver });
+  } catch (err: any) {
+    if (err?.status === 401 || err?.name === "UnauthorizedError") {
+      return new Response("Unauthorized", { status: 401 });
+    }
+    console.error("POST /api/drivers/profile failed:", err);
+    return new Response("Internal Server Error", { status: 500 });
+  }
 }

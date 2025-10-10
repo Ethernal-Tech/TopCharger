@@ -4,17 +4,33 @@ import { createHostProfileSchema } from "@/lib/validation";
 import { requireUserId } from "@/lib/api-auth";
 import { badRequest, created, options } from "@/lib/http";
 
-export async function OPTIONS() { return options(); }
+export async function OPTIONS() {
+  return options();
+}
 
+// apps/backend/src/app/api/hosts/profile/route.ts
 export async function POST(req: NextRequest) {
   const userId = await requireUserId(req);
   const body = await req.json().catch(() => null);
   const parse = createHostProfileSchema.safeParse(body);
-  if (!parse.success) return badRequest(parse.error.issues[0]?.message || "Invalid payload");
+  if (!parse.success)
+    return badRequest(parse.error.issues[0]?.message || "Invalid payload");
+
+  const existing = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { role: true },
+  });
+  if (!existing) return badRequest("User not found");
+
+  if (existing.role !== "UNSET" && existing.role !== "HOST") {
+    return new Response(
+      JSON.stringify({ error: "Role conflict: user is not a HOST" }),
+      { status: 409 }
+    );
+  }
 
   const { businessName, bankAccountIban, bankAccountName } = parse.data;
 
-  // Upsert profile, ensure role is HOST
   const user = await prisma.user.update({
     where: { id: userId },
     data: {
