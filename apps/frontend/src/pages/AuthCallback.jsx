@@ -1,33 +1,35 @@
-// src/pages/AuthCallback.jsx
 import { useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 
 export default function AuthCallback() {
-    const navigate = useNavigate();
-
     useEffect(() => {
         (async () => {
             try {
+                console.log("Fetching JWT from backend..."); // <-- debug log
                 const res = await fetch("http://localhost:3000/api/auth/token", {
                     method: "GET",
                     credentials: "include", // send cookies
                 });
 
+                console.log("Response status:", res.status); // <-- debug log
+
                 if (!res.ok) {
-                    // Redirect to login if token fetch fails
-                    navigate("/login");
+                    console.warn("Unauthorized, redirecting to login"); // <-- debug log
+                    // redirect to login page on frontend
+                    window.location.href = "http://localhost:5173/login";
                     return;
                 }
 
                 const { token } = await res.json();
-                sessionStorage.setItem("tc_token", token); // store token
-                navigate("/"); // redirect to dashboard/home
+                console.log("JWT received:", token); // 
+                sessionStorage.setItem("tc_token", token); // store JWT
+                // redirect to dashboard/home on frontend
+                window.location.href = "http://localhost:5173/";
             } catch (err) {
-                console.error(err);
-                navigate("/login");
+                console.error("AuthCallback error:", err);
+                window.location.href = "http://localhost:5173/login";
             }
         })();
-    }, [navigate]);
+    }, []);
 
     return <p>Signing in...</p>;
 }
