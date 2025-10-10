@@ -1,4 +1,4 @@
-import { Connection, Keypair, PublicKey, clusterApiUrl } from "@solana/web3.js";
+import { Connection, Keypair, clusterApiUrl } from "@solana/web3.js";
 import bs58 from "bs58";
 import fs from "node:fs";
 
