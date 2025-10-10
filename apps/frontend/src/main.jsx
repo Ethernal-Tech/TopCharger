@@ -10,6 +10,8 @@ import AddCharger from './pages/AddCharger.jsx';
 import MyChargers from './pages/MyChargers.jsx';
 import Navbar from './components/Navbar.jsx';
 import WalletProvider from "./context/WalletProvider.jsx";
+import AuthCallback from "./pages/AuthCallback";
+import CreateProfile from "./pages/CreateProfile.jsx";
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>
@@ -23,6 +25,8 @@ createRoot(document.getElementById("root")).render(
           <Route path="/profile" element={<Profile />} />
           <Route path="/add-charger" element={<AddCharger />} />
           <Route path="/my-chargers" element={<MyChargers />} />
+          <Route path="/create-profile" element={<CreateProfile />} />
+          <Route path="/auth/callback" element={<AuthCallback />} />
         </Routes>
       </BrowserRouter>
     </WalletProvider>
