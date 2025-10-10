@@ -1,3 +1,4 @@
+// apps/backend/src/app/api/drivers/profile/route.ts
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
 import { upsertDriverProfileSchema } from "@/lib/validation";
@@ -6,6 +7,12 @@ import { badRequest, created, options } from "@/lib/http";
 
 export function OPTIONS() {
   return options();
+}
+
+function isUnauthorized(e: unknown): boolean {
+  if (typeof e !== "object" || e === null) return false;
+  const m = e as { status?: number; name?: string };
+  return m.status === 401 || m.name === "UnauthorizedError";
 }
 
 export async function POST(req: NextRequest) {
@@ -31,8 +38,7 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // STRICT guard:
-    // Allow only if role is UNSET or already DRIVER; otherwise block with 409.
+    // STRICT guard
     if (existing.role !== "UNSET" && existing.role !== "DRIVER") {
       return new Response(
         JSON.stringify({ error: "Role conflict: user is not a DRIVER" }),
@@ -66,8 +72,8 @@ export async function POST(req: NextRequest) {
     });
 
     return created({ userId, role: user.role, driver: user.driver });
-  } catch (err: any) {
-    if (err?.status === 401 || err?.name === "UnauthorizedError") {
+  } catch (err: unknown) {
+    if (isUnauthorized(err)) {
       return new Response("Unauthorized", { status: 401 });
     }
     console.error("POST /api/drivers/profile failed:", err);

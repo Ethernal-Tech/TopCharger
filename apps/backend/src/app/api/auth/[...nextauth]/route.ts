@@ -1,3 +1,4 @@
+// apps/backend/src/app/api/auth/[...nextauth]/route.ts
 import NextAuth, { type NextAuthOptions } from "next-auth";
 import Google from "next-auth/providers/google";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
@@ -5,7 +6,7 @@ import { prisma } from "@/lib/db";
 
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
-  session: { strategy: "jwt" }, // <- use JWT-based sessions
+  session: { strategy: "jwt" },
   providers: [
     Google({
       clientId: process.env.GOOGLE_CLIENT_ID || "",
@@ -15,32 +16,33 @@ export const authOptions: NextAuthOptions = {
   ],
   callbacks: {
     async jwt({ token, user }) {
-      if (user && "id" in user) token.sub = String((user as { id: string }).id);
-      // Load role on first sign-in or when missing (tiny query; cached by session later)
-      if (!("role" in token) && token.sub) {
+      // Persist sub on initial sign-in
+      if (user && "id" in user) {
+        token.sub = String((user as { id: string }).id);
+      }
+
+      // Populate role once (cached via token, then session)
+      if (token.role == null && token.sub) {
         const u = await prisma.user.findUnique({
           where: { id: String(token.sub) },
           select: { role: true },
         });
-        (token as any).role = u?.role ?? "UNSET";
+        token.role = u?.role ?? "UNSET";
       }
       return token;
     },
     async session({ session, token }) {
-      if (session.user && token.sub) session.user.id = String(token.sub);
-      (session.user as any).role = (token as any).role ?? "UNSET"; // <- expose role
+      if (session.user && token.sub) {
+        session.user.id = String(token.sub);
+      }
+      session.user.role = token.role ?? "UNSET";
       return session;
     },
     async redirect({ url, baseUrl }) {
-      // Allow redirect to your React frontend:
-      if (url.startsWith("http://localhost:5173")) {
-        return url;
-      }
-      // Default behavior – redirect to backend domain
+      if (url.startsWith("http://localhost:5173")) return url;
       return baseUrl;
     },
   },
-  // Optional: set your JWT secret explicitly (NextAuth will use NEXTAUTH_SECRET anyway)
   // jwt: { secret: process.env.NEXTAUTH_SECRET },
 };
 
