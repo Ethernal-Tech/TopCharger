@@ -6,13 +6,16 @@ declare_id!("FPmUDY73xYusKgVyAgKtFhv18vC3gaHWPm2BmWko8JZ7"); // replace with you
 pub mod topcharger_program {
     use super::*;
 
-        /// Register a user (host or driver)
+    /// Register a user (host or driver)
     pub fn register_user(
         ctx: Context<RegisterUser>,
-        role: u8,               // 0 = driver, 1 = host
-        user_id_hash: [u8; 32], // hashed UUID/email
+        role: u8,                // 0 = driver, 1 = host
+        user_id_hash: [u8; 32],  // hashed UUID/email
     ) -> Result<()> {
-
+        let user = &mut ctx.accounts.user;
+        user.user_id_hash = user_id_hash;
+        user.role = role;
+        user.wallet = ctx.accounts.wallet.key();
         Ok(())
     }
 
@@ -22,23 +25,50 @@ pub mod topcharger_program {
         user_id_hash: [u8; 32],
         charger_id: u64,
         power_kw: u16,
-        supply_type: u8, // e.g. 0=AC, 1=DC
+        supply_type: u8, // e.g. 0=renewable energy source, 1=non-renewable energy source
         price: u64,
         location: String,
     ) -> Result<()> {
+        let charger = &mut ctx.accounts.charger;
+        charger.user_id_hash = user_id_hash;
+        charger.host_wallet = ctx.accounts.wallet.key();
+        charger.charger_id = charger_id;
+        charger.power_kw = power_kw;
+        charger.supply_type = supply_type;
+        charger.price = price;
+        charger.status = 0; // available
 
+        // store up to 64 bytes of location text
+        let mut buf = [0u8; 64];
+        let bytes = location.as_bytes();
+        let len = bytes.len().min(64);
+        buf[..len].copy_from_slice(&bytes[..len]);
+        charger.location = buf;
         Ok(())
     }
 
     /// Driver reserves a charger (allocates)
-    pub fn reserve_charger(ctx: Context<ReserveCharger>, driver_user_hash: [u8; 32]) -> Result<()> {
+    pub fn reserve_charger(
+        ctx: Context<ReserveCharger>,
+        driver_user_hash: [u8; 32],
+    ) -> Result<()> {
+        let charger = &mut ctx.accounts.charger;
+        let match_acc = &mut ctx.accounts.match_account;
 
+        require!(charger.status == 0, ErrorCode::ChargerNotAvailable);
+        charger.status = 1; // allocated
+
+        match_acc.driver_user_hash = driver_user_hash;
+        match_acc.charger = ctx.accounts.charger.key();
+        match_acc.status = 0; // pending confirmation
         Ok(())
     }
 
     /// Driver confirms charging complete
     pub fn confirm_charge(ctx: Context<ConfirmCharge>, was_correct: bool) -> Result<()> {
-        
+        let match_acc = &mut ctx.accounts.match_account;
+        match_acc.status = 1; // completed
+        match_acc.confirmed_correct = was_correct;
         Ok(())
     }
 }
