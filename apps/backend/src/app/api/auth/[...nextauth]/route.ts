@@ -16,10 +16,19 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async jwt({ token, user }) {
       if (user && "id" in user) token.sub = String((user as { id: string }).id);
+      // Load role on first sign-in or when missing (tiny query; cached by session later)
+      if (!("role" in token) && token.sub) {
+        const u = await prisma.user.findUnique({
+          where: { id: String(token.sub) },
+          select: { role: true },
+        });
+        (token as any).role = u?.role ?? "UNSET";
+      }
       return token;
     },
     async session({ session, token }) {
       if (session.user && token.sub) session.user.id = String(token.sub);
+      (session.user as any).role = (token as any).role ?? "UNSET"; // <- expose role
       return session;
     },
     async redirect({ url, baseUrl }) {
