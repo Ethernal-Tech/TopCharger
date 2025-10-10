@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
 import { upsertDriverProfileSchema } from "@/lib/validation";
 import { requireUserId } from "@/lib/api-auth";
-import { badRequest, created, ok, options, forbidden } from "@/lib/http";
+import { badRequest, created, options, forbidden } from "@/lib/http";
 
 export function OPTIONS() {
   return options();
