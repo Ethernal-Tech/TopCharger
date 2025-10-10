@@ -15,6 +15,7 @@ datasource db {
 }
 
 enum UserRole {
+  UNSET
   HOST
   DRIVER
   ADMIN
@@ -35,7 +36,7 @@ model User {
   name          String?
   image         String?
   passwordHash  String?
-  role          UserRole  @default(DRIVER)
+  role          UserRole  @default(UNSET)
   emailVerified DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
