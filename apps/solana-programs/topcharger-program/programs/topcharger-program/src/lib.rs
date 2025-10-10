@@ -10,7 +10,7 @@ pub mod topcharger_program {
     pub fn register_user(
         ctx: Context<RegisterUser>,
         role: u8,                // 0 = driver, 1 = host
-        user_id_hash: [u8; 32],  // hashed UUID/email
+        user_id_hash: [u8; 32],  // hashed UUID/email (32 bytes)
     ) -> Result<()> {
         let user = &mut ctx.accounts.user;
         user.user_id_hash = user_id_hash;
@@ -31,7 +31,7 @@ pub mod topcharger_program {
     ) -> Result<()> {
         let charger = &mut ctx.accounts.charger;
         charger.user_id_hash = user_id_hash;
-        charger.host_wallet = ctx.accounts.wallet.key();
+        //charger.host_wallet = ctx.accounts.wallet.key();
         charger.charger_id = charger_id;
         charger.power_kw = power_kw;
         charger.supply_type = supply_type;
@@ -80,8 +80,8 @@ pub struct RegisterUser<'info> {
         init,
         payer = authority,
         space = 8 + std::mem::size_of::<UserAccount>(),
-        //seeds = [b"user", user_id_hash.as_ref()],
-        //bump
+        seeds = [b"user", user_id_hash.as_ref()],
+        bump
     )]
     pub user: Account<'info, UserAccount>,
 
@@ -101,8 +101,8 @@ pub struct CreateCharger<'info> {
         init,
         payer = authority,
         space = 8 + std::mem::size_of::<ChargerAccount>(),
-        //seeds = [b"charger", user_id_hash.as_ref(), &charger_id.to_le_bytes()],
-        //bump
+        seeds = [b"charger", user_id_hash.as_ref(), &charger_id.to_le_bytes()],
+        bump
     )]
     pub charger: Account<'info, ChargerAccount>,
 
@@ -124,8 +124,8 @@ pub struct ReserveCharger<'info> {
         init,
         payer = authority,
         space = 8 + std::mem::size_of::<MatchAccount>(),
-        //seeds = [b"match", charger.key().as_ref()],
-        //bump
+        seeds = [b"match", charger.key().as_ref()],
+        bump
     )]
     pub match_account: Account<'info, MatchAccount>,
 
@@ -144,7 +144,7 @@ pub struct ConfirmCharge<'info> {
 /// On-chain user record (host or driver)
 #[account]
 pub struct UserAccount {
-    pub user_id_hash: [u8; 32],
+    pub user_id_hash: [u8; 32], // hashed UUID/email
     pub role: u8,       // 0=driver, 1=host
     pub wallet: Pubkey, // user wallet for future rewards/payments
 }
@@ -153,7 +153,7 @@ pub struct UserAccount {
 #[account]
 pub struct ChargerAccount {
     pub user_id_hash: [u8; 32],
-    pub host_wallet: Pubkey,
+    //pub host_wallet: Pubkey,
     pub charger_id: u64,
     pub power_kw: u16,
     pub supply_type: u8,
