@@ -80,8 +80,8 @@ pub struct RegisterUser<'info> {
         init,
         payer = authority,
         space = 8 + std::mem::size_of::<UserAccount>(),
-        seeds = [b"user", user_id_hash.as_ref()],
-        bump
+        //seeds = [b"user", user_id_hash.as_ref()],
+        //bump
     )]
     pub user: Account<'info, UserAccount>,
 
@@ -101,8 +101,8 @@ pub struct CreateCharger<'info> {
         init,
         payer = authority,
         space = 8 + std::mem::size_of::<ChargerAccount>(),
-        seeds = [b"charger", user_id_hash.as_ref(), &charger_id.to_le_bytes()],
-        bump
+        //seeds = [b"charger", user_id_hash.as_ref(), &charger_id.to_le_bytes()],
+        //bump
     )]
     pub charger: Account<'info, ChargerAccount>,
 
@@ -124,8 +124,8 @@ pub struct ReserveCharger<'info> {
         init,
         payer = authority,
         space = 8 + std::mem::size_of::<MatchAccount>(),
-        seeds = [b"match", charger.key().as_ref()],
-        bump
+        //seeds = [b"match", charger.key().as_ref()],
+        //bump
     )]
     pub match_account: Account<'info, MatchAccount>,
 
