@@ -36,3 +36,15 @@ export const upsertDriverProfileSchema = z.object({
     .enum(["TYPE2", "CCS2", "CHADEMO", "CCS1", "NEMA14_50", "SCHUKO"])
     .optional(),
 });
+// vehicle validation schemas
+export const createVehicleSchema = z.object({
+  model: z.string().min(1).max(120).optional(), // e.g., "VW ID.4"
+  connector: z.enum(["TYPE2","CCS2","CHADEMO","CCS1","NEMA14_50","SCHUKO"]),
+});
+
+export const updateVehicleSchema = z.object({
+  model: z.string().min(1).max(120).optional(),
+  connector: z.enum(["TYPE2","CCS2","CHADEMO","CCS1","NEMA14_50","SCHUKO"]).optional(),
+});
+
+export const vehicleIdParamSchema = z.string().min(1); // cuid string
