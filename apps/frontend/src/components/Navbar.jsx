@@ -1,5 +1,6 @@
 // src/components/Navbar.jsx
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 
 const BACKEND = "http://localhost:3000";
 const FRONTEND = "http://localhost:5173";
@@ -7,32 +8,44 @@ const FRONTEND = "http://localhost:5173";
 export default function Navbar() {
     const [walletAddress, setWalletAddress] = useState(null);
     const [googleToken, setGoogleToken] = useState(null);
+    const [role, setRole] = useState(null); // HOST or DRIVER
 
-    // Check if Google user is already logged in
+    // Fetch Google token and user info
     useEffect(() => {
         (async () => {
             try {
-                const res = await fetch(`${BACKEND}/api/auth/token`, {
+                // Check Google auth token
+                const tokenRes = await fetch(`${BACKEND}/api/auth/token`, {
                     method: "GET",
-                    credentials: "include", // send NextAuth cookie
+                    credentials: "include",
                 });
-                if (res.ok) {
-                    const { token } = await res.json();
-                    if (token) setGoogleToken(token); // mark user as logged in
+                if (tokenRes.ok) {
+                    const { token } = await tokenRes.json();
+                    if (token) {
+                        setGoogleToken(token);
+
+                        // Fetch user info to get role
+                        const meRes = await fetch(`${BACKEND}/api/auth/me`, {
+                            method: "GET",
+                            credentials: "include",
+                        });
+                        if (meRes.ok) {
+                            const { user } = await meRes.json();
+                            setRole(user?.role || null);
+                        }
+                    }
                 }
             } catch (err) {
-                console.error("Failed to fetch auth token", err);
+                console.error("Failed to fetch auth token or user info", err);
             }
         })();
     }, []);
 
-    // Phantom wallet login/disconnect
     const handleWalletDisconnect = async () => {
         setWalletAddress(null);
         if (window.solana) await window.solana.disconnect();
     };
 
-    // Google logout
     const handleGoogleLogout = async () => {
         sessionStorage.removeItem("tc_token");
         window.location.href = `${BACKEND}/api/auth/signout?callbackUrl=${FRONTEND}`;
@@ -40,8 +53,26 @@ export default function Navbar() {
 
     return (
         <nav className="bg-white/90 backdrop-blur-md shadow-md p-4 flex justify-between items-center">
-            <h1 className="text-2xl font-bold text-green-900">⚡ TopCharger</h1>
+            {/* Left side: Logo + Nav Links */}
+            <div className="flex items-center gap-6">
+                <h1 className="text-2xl font-bold text-green-900">⚡ TopCharger</h1>
 
+                <div className="flex gap-4 text-green-800 font-medium">
+                    {/* Conditional links */}
+                    {googleToken && role === "HOST" && (
+                        <Link to="/my-chargers" className="hover:text-green-600 transition">
+                            My Chargers
+                        </Link>
+                    )}
+                    {googleToken && (role === "HOST" || role === "DRIVER") && (
+                        <Link to="/profile" className="hover:text-green-600 transition">
+                            Profile
+                        </Link>
+                    )}
+                </div>
+            </div>
+
+            {/* Right side: Logout / Disconnect */}
             <div className="flex items-center gap-4">
                 {walletAddress && (
                     <button
