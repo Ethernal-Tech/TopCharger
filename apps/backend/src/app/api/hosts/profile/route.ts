@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
 import { createHostProfileSchema } from "@/lib/validation";
 import { requireUserId } from "@/lib/api-auth";
-import { badRequest, created, options } from "@/lib/http";
+import { badRequest, created, options, ok, notFound } from "@/lib/http";
 
 export async function OPTIONS() {
   return options();
@@ -46,4 +46,31 @@ export async function POST(req: NextRequest) {
   });
 
   return created({ userId: user.id, role: user.role, host: user.host });
+}
+// fetch host profile
+export async function GET(req: NextRequest) {
+  try {
+    const userId = await requireUserId(req);
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        host: true,
+      },
+    });
+
+    if (!user?.host) {
+      return notFound("No host profile");
+    }
+    return ok(user);
+  } catch {
+    // If your requireUserId throws, surface 401 instead of 500:
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
 }
