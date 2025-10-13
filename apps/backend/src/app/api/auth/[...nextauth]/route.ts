@@ -21,15 +21,15 @@ export const authOptions: NextAuthOptions = {
         token.sub = String((user as { id: string }).id);
       }
 
-      // Populate role once (cached via token, then session)
-      if (token.role == null && token.sub) {
-        const u = await prisma.user.findUnique({
-          where: { id: String(token.sub) },
-          select: { role: true },
-        });
-        token.role = u?.role ?? "UNSET";
-      }
-      return token;
+     // refresh role from DB (cheap & consistent for MVP)
+    if (token.sub) {
+      const u = await prisma.user.findUnique({
+        where: { id: String(token.sub) },
+        select: { role: true },
+      });
+      token.role = u?.role ?? "UNSET";
+    }
+    return token;
     },
     async session({ session, token }) {
       if (session.user && token.sub) {
