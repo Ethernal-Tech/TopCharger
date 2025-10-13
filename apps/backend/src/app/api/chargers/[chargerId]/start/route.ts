@@ -5,10 +5,13 @@ import { requireDriverContext } from "@/lib/authz";
 
 export async function OPTIONS() { return options(); }
 
-export async function POST(req: NextRequest, { params }: { params: { chargerId: string } }) {
+export async function POST(
+  req: NextRequest,
+  context: { params: { chargerId: string } }
+) {
   try {
     const { userId, driver } = await requireDriverContext(req);
-    const { chargerId } = params;
+    const { chargerId } = context.params;
 
     const charger = await prisma.charger.findUnique({ where: { id: chargerId } });
     if (!charger) return badRequest("Charger not found");
