@@ -29,3 +29,17 @@ export function clusterQueryParam(): "devnet" | "testnet" | "mainnet" {
   if (url.includes("testnet")) return "testnet";
   return "mainnet";
 }
+
+export type SolanaTxKind = "START" | "STOP";
+
+export type SolanaTxResult = {
+  signature: string; // tx sig
+};
+
+export async function sendSessionTx(_kind: SolanaTxKind, _args: { sessionId: string }) : Promise<SolanaTxResult> {
+  // Placeholder for later:
+  // 1) load payer
+  // 2) build instruction(s)
+  // 3) send & confirm
+  return { signature: "SIMULATED_SIG" };
+}
