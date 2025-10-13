@@ -41,52 +41,103 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  host          HostProfile?
-  driver        DriverProfile?
-  accounts      Account[]
-  sessions      Session[]
+  host     HostProfile?
+  driver   DriverProfile?
+  accounts Account[]
+  sessions Session[]
 }
 
 model HostProfile {
-  userId          String   @id
-  user            User     @relation(fields: [userId], references: [id])
+  userId          String            @id
+  user            User              @relation(fields: [userId], references: [id])
   businessName    String
   bankAccountIban String?
   bankAccountName String?
   chargers        Charger[]
+  sessions        ChargingSession[]
 }
 
 model DriverProfile {
-  userId             String        @id
-  user               User          @relation(fields: [userId], references: [id])
+  userId             String            @id
+  user               User              @relation(fields: [userId], references: [id])
   fullName           String?
   phone              String?
   solanaPubkey       String?
   preferredConnector ConnectorType?
   vehicles           Vehicle[]
+  sessions           ChargingSession[]
 }
 
 model Vehicle {
-  id        String         @id @default(cuid())
+  id        String        @id @default(cuid())
   driverId  String
-  Driver    DriverProfile  @relation(fields: [driverId], references: [userId])
+  Driver    DriverProfile @relation(fields: [driverId], references: [userId])
   model     String?
   connector ConnectorType
-  createdAt DateTime @default(now())
+  createdAt DateTime      @default(now())
+}
+
+enum ChargingStatus {
+  PENDING
+  ACTIVE
+  STOPPED
+  SETTLED
+  CANCELLED
 }
 
 model Charger {
-  id          String      @id @default(cuid())
+  id          String        @id @default(cuid())
   hostId      String
-  host        HostProfile @relation(fields: [hostId], references: [userId])
+  host        HostProfile   @relation(fields: [hostId], references: [userId])
   name        String
   latitude    Float
   longitude   Float
   pricePerKwh Float
   connector   ConnectorType
-  available   Boolean     @default(true)
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  available   Boolean       @default(true)
+  powerKw     Float         @default(22)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sessions ChargingSession[]
+
+  @@index([hostId])
+}
+
+model ChargingSession {
+  id        String @id @default(cuid())
+  driverId  String
+  chargerId String
+  hostId    String
+
+  status ChargingStatus @default(PENDING)
+
+  // Snapshots at START for correct billing
+  pricePerKwhSnapshot Float
+  powerKwSnapshot     Float
+  connectorSnapshot   ConnectorType
+
+  // Times & metering
+  startedAt DateTime  @default(now())
+  stoppedAt DateTime?
+  energyKwh Float? // computed in STOP if you don’t have real meter
+  costTotal Float? // computed in STOP
+
+  // Future blockchain hooks
+  startTxSig String?
+  stopTxSig  String?
+
+  driver  DriverProfile @relation(fields: [driverId], references: [userId])
+  charger Charger       @relation(fields: [chargerId], references: [id])
+  host    HostProfile   @relation(fields: [hostId], references: [userId])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([driverId, status])
+  @@index([chargerId, status])
+  @@index([hostId, status])
 }
 
 // Auth.js tables
