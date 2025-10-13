@@ -80,3 +80,36 @@ export async function POST(req: NextRequest) {
     return new Response("Internal Server Error", { status: 500 });
   }
 }
+// fetch driver profile
+export async function GET(req: NextRequest) {
+  try {
+    const userId = await requireUserId(req);
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        driver: true,
+      },
+    });
+
+    if (!user?.driver) {
+      return new Response(JSON.stringify({ error: "No driver profile" }), {
+        status: 404,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    return new Response(JSON.stringify(user), {
+      headers: { "Content-Type": "application/json" },
+    });
+  } catch (err) {
+    if (isUnauthorized(err)) {
+      return new Response("Unauthorized", { status: 401 });
+    }
+    console.error("GET /api/drivers/profile failed:", err);
+    return new Response("Internal Server Error", { status: 500 });
+  }
+}
