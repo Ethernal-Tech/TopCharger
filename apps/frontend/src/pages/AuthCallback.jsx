@@ -1,32 +1,58 @@
+// src/pages/auth/callback.jsx
 import { useEffect } from "react";
+
+const BACKEND = "http://localhost:3000";
+const FRONTEND = "http://localhost:5173";
 
 export default function AuthCallback() {
     useEffect(() => {
         (async () => {
             try {
-                console.log("Fetching JWT from backend..."); // <-- debug log
-                const res = await fetch("http://localhost:3000/api/auth/token", {
+                console.log("Fetching JWT from backend...");
+                const tokenRes = await fetch(`${BACKEND}/api/auth/token`, {
                     method: "GET",
-                    credentials: "include", // send cookies
+                    credentials: "include",
                 });
 
-                console.log("Response status:", res.status); // <-- debug log
-
-                if (!res.ok) {
-                    console.warn("Unauthorized, redirecting to login"); // <-- debug log
-                    // redirect to login page on frontend
-                    window.location.href = "http://localhost:5173/login";
+                if (!tokenRes.ok) {
+                    console.warn("Unauthorized, redirecting to login");
+                    window.location.href = FRONTEND;
                     return;
                 }
 
-                const { token } = await res.json();
-                console.log("JWT received:", token); // 
-                sessionStorage.setItem("tc_token", token); // store JWT
-                // redirect to dashboard/home on frontend
-                window.location.href = "http://localhost:5173/";
+                const { token } = await tokenRes.json();
+                console.log("JWT received:", token);
+                sessionStorage.setItem("tc_token", token);
+
+                // fetch user info
+                const meRes = await fetch(`${BACKEND}/api/auth/me`, {
+                    method: "GET",
+                    credentials: "include",
+                });
+
+                if (!meRes.ok) {
+                    console.error("Failed to fetch user info, redirecting to login");
+                    window.location.href = FRONTEND;
+                    return;
+                }
+
+                const { user } = await meRes.json();
+
+                sessionStorage.setItem("tc_user", JSON.stringify(user));
+
+                if (user.role === "UNSET") {
+                    // first time user: redirect to role selection page
+                    window.location.href = `${FRONTEND}/select-role`;
+                } else if (user.role === "HOST") {
+                    // redirect to my chargers
+                    window.location.href = `${FRONTEND}/my-chargers`;
+                } else {
+                    // redirect to dashboard
+                    window.location.href = FRONTEND;
+                }
             } catch (err) {
                 console.error("AuthCallback error:", err);
-                window.location.href = "http://localhost:5173/login";
+                window.location.href = FRONTEND;
             }
         })();
     }, []);
