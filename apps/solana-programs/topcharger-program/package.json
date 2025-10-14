@@ -5,7 +5,9 @@
     "lint": "prettier */*.js \"*/**/*{.js,.ts}\" --check"
   },
   "dependencies": {
-    "@coral-xyz/anchor": "^0.31.1"
+    "@coral-xyz/anchor": "^0.31.1",
+    "@types/express": "^5.0.3",
+    "express": "^5.1.0"
   },
   "devDependencies": {
     "@types/bn.js": "^5.1.0",
