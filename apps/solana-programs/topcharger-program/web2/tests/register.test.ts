@@ -1,5 +1,5 @@
 import { expect } from "chai";
-import { registerUser, createCharger } from "../src/register";
+import { registerUser, createCharger } from "../src/register.ts";
 import { Connection, PublicKey } from "@solana/web3.js";
 import path from "path";
 import fs from "fs";
@@ -15,7 +15,7 @@ describe("web2 register script", function () {
       return;
     }
 
-    const userIdHashArr = Array(32).fill(7);
+    const userIdHashArr = Array(32).fill(124);
     const res = await registerUser(1, userIdHashArr);
     expect(res).to.have.property("tx");
     expect(res).to.have.property("userPda");
@@ -50,14 +50,13 @@ describe("web2 register script", function () {
     const powerKw = 22;
     const supplyType = 1;
     const price = 1000000;
-    const location = Array(64).fill(1);
+    //const location = Array(64).fill(1);
     const chargerRes = await createCharger(
       userIdHashArr,
       chargerId,
       powerKw,
       supplyType,
-      price,
-      location
+      price
     );
     expect(chargerRes).to.have.property("tx");
     expect(chargerRes).to.have.property("chargerPda");
@@ -69,8 +68,8 @@ describe("web2 register script", function () {
     expect(chargerAcct).to.not.be.null;
     if (!chargerAcct) return;
     const cdata = chargerAcct.data;
-    // Discriminator (8) + user_id_hash (32) + charger_id (8) + power_kw (2) + supply_type (1) + price (8) + status (1) + location (64)
-    if (cdata.length < 8 + 32 + 8 + 2 + 1 + 8 + 1 + 64) {
+    // Discriminator (8) + user_id_hash (32) + charger_id (8) + power_kw (2) + supply_type (1) + price (8) + status (1)
+    if (cdata.length < 8 + 32 + 8 + 2 + 1 + 8 + 1) {
       throw new Error(`unexpected charger account size: ${cdata.length}`);
     }
     let offset = 8;
@@ -80,13 +79,13 @@ describe("web2 register script", function () {
     const c_supplyType = cdata[offset]; offset += 1;
     const c_price = Number(cdata.readBigUInt64LE(offset)); offset += 8;
     const c_status = cdata[offset]; offset += 1;
-    const c_location = cdata.slice(offset, offset + 64).toString("utf8").replace(/\0+$/, "");
+    //const c_location = cdata.slice(offset, offset + 64).toString("utf8").replace(/\0+$/, "");
 
     expect(Array.from(c_userHash)).to.deep.equal(userIdHashArr);
     expect(c_chargerId).to.equal(chargerId);
     expect(c_powerKw).to.equal(powerKw);
     expect(c_supplyType).to.equal(supplyType);
     expect(c_price).to.equal(price);
-    expect(c_location).to.include(location);
+    //expect(c_location).to.include(location);
   });
 });

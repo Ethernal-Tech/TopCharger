@@ -2,6 +2,7 @@
   "name": "topcharger-web2",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "start": "node src/register.js",
     "dev": "node src/register.js",

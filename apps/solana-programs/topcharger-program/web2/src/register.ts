@@ -1,6 +1,13 @@
 import { PublicKey } from "@solana/web3.js";
 import fs from "fs";
 import path from "path";
+import { createRequire } from "module";
+import { fileURLToPath } from "url";
+
+// Provide CommonJS-like globals in ESM context
+const require = createRequire(import.meta.url);
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 export async function registerUser(role: number, userIdHashArr?: number[] | Buffer) {
   // Ensure required env vars
@@ -12,10 +19,21 @@ export async function registerUser(role: number, userIdHashArr?: number[] | Buff
   }
 
   // If Anchor.toml isn't in cwd, change to program root so Anchor can find the workspace files
-  const probableProgramRoot = path.resolve(__dirname, "..", "..");
-  const anchorTomlPath = path.join(probableProgramRoot, "Anchor.toml");
-  if (fs.existsSync(anchorTomlPath)) {
-    process.chdir(probableProgramRoot);
+  // Ascend directories until we find Anchor.toml (expected at program root)
+  function findAnchorRoot(startDir: string): string | null {
+    let current = startDir;
+    for (let i = 0; i < 5; i++) { // safety depth
+      const candidate = path.join(current, "Anchor.toml");
+      if (fs.existsSync(candidate)) return current;
+      const parent = path.dirname(current);
+      if (parent === current) break;
+      current = parent;
+    }
+    return null;
+  }
+  const anchorRoot = findAnchorRoot(__dirname);
+  if (anchorRoot) {
+    process.chdir(anchorRoot);
   }
 
   // dynamic import to avoid Anchor trying to read workspace at module load time from the web2 folder
@@ -112,7 +130,8 @@ export async function registerUser(role: number, userIdHashArr?: number[] | Buff
   return { tx: sig, userPda: userPda.toBase58() };
 }
 
-if (require.main === module) {
+// Determine if this file is executed directly (similar to require.main === module in CJS)
+if (process.argv[1] && path.resolve(process.argv[1]) === __filename) {
   (async () => {
     try {
       const result = await registerUser(1);
@@ -129,8 +148,7 @@ export async function createCharger(
   chargerId: number | bigint,
   powerKw: number,
   supplyType: number,
-  price: number | bigint,
-  location: number[] | Buffer // Changed type to match userIdHashArr
+  price: number | bigint
 ) {
   if (!process.env.ANCHOR_PROVIDER_URL) {
     throw new Error("ANCHOR_PROVIDER_URL not set. Set it to your RPC (e.g. http://127.0.0.1:8899)");
@@ -167,19 +185,6 @@ export async function createCharger(
     userHashBuf = tmp;
   }
 
-  // Normalize location to [u8; 64]
-  let locationBuf: Buffer;
-  if (Array.isArray(location)) {
-    locationBuf = Buffer.from(location);
-  } else {
-    locationBuf = Buffer.from(location);
-  }
-  if (locationBuf.length !== 64) {
-    const tmp = Buffer.alloc(64, 0);
-    locationBuf.copy(tmp, 0, 0, Math.min(locationBuf.length, 64));
-    locationBuf = tmp;
-  }
-
   // charger_id as u64 le
   const chargerIdBuf = Buffer.alloc(8);
   chargerIdBuf.writeBigUInt64LE(BigInt(chargerId));
@@ -209,8 +214,7 @@ export async function createCharger(
     chargerIdBuf,
     powerKwBuf,
     supplyTypeBuf,
-    priceBuf,
-    locationBuf,
+    priceBuf
   ]);
   const data = Buffer.concat([discriminator, argsBuf]);
 
