@@ -6,6 +6,7 @@ import {
   TransactionInstruction,
   Transaction,
   SystemProgram,
+  AccountInfo,
 } from "@solana/web3.js";
 import * as anchor from "@coral-xyz/anchor";
 import type { Idl } from "@coral-xyz/anchor";
@@ -66,12 +67,12 @@ function roleToU8(role: "HOST" | "DRIVER" | "UNSET" | "ADMIN"): number {
     case "HOST":
       return 1;
     case "DRIVER":
-      return 2;
+      return 0;
     case "ADMIN":
-      return 3;
+      return 2;
     case "UNSET":
     default:
-      return 0;
+      return 3;
   }
 }
 
@@ -163,4 +164,68 @@ export async function registerUserOnChain(
   });
 
   return { signature: sig as string, userPda: userPda.toBase58() };
+}
+// --- Role mapping aligned to on-chain: 0 = DRIVER, 1 = HOST ---
+function roleFromU8(n: number): "DRIVER" | "HOST" | "UNKNOWN" {
+  if (n === 0) return "DRIVER";
+  if (n === 1) return "HOST";
+  return "UNKNOWN";
+}
+
+function sha256_32(userId: string): Buffer {
+  return crypto.createHash("sha256").update(userId, "utf8").digest().subarray(0, 32);
+}
+
+/** Derive the User PDA from backend userId (no IDL needed). */
+export async function deriveUserPdaFromUserId(userId: string): Promise<PublicKey> {
+  const programIdStr = process.env.TOPCHARGER_PROGRAM_ID;
+  if (!programIdStr) throw new Error("TOPCHARGER_PROGRAM_ID not set");
+  const programId = new PublicKey(programIdStr);
+
+  const userHash = sha256_32(userId);
+  const [userPda] = PublicKey.findProgramAddressSync(
+    [Buffer.from("user"), userHash],
+    programId
+  );
+  return userPda;
+}
+
+/** Manual decode of the on-chain User account without IDL (Anchor discriminator + struct). */
+function decodeUserAccount(data: Buffer) {
+  // Expect 8 (disc) + 32 (hash) + 1 (role) + 32 (wallet) = 73 bytes
+  if (data.length < 73) throw new Error(`User account too small: ${data.length} bytes`);
+  const view = data.subarray(8); // skip 8-byte Anchor discriminator
+
+  const userIdHash = view.subarray(0, 32);  // [0..32)
+  const roleU8 = view.readUInt8(32);        // byte 32
+  const walletRaw = view.subarray(33, 65);  // [33..65)
+
+  const wallet = new PublicKey(walletRaw);
+  return {
+    userIdHashHex: Buffer.from(userIdHash).toString("hex"),
+    roleU8,
+    role: roleFromU8(roleU8),
+    wallet: wallet.toBase58(),
+  };
+}
+
+/** Fetch + decode by PDA (string). */
+export async function fetchUserAccountByPda(userPdaStr: string) {
+  const userPda = new PublicKey(userPdaStr);
+  const info: AccountInfo<Buffer> | null = await connection.getAccountInfo(userPda);
+  if (!info) return null;
+
+  const decoded = decodeUserAccount(info.data);
+  return {
+    pda: userPda.toBase58(),
+    lamports: info.lamports,
+    owner: info.owner.toBase58(),
+    ...decoded,
+  };
+}
+
+/** Derive PDA from backend userId, then fetch + decode. */
+export async function fetchUserAccountByUserId(userId: string) {
+  const userPda = await deriveUserPdaFromUserId(userId);
+  return fetchUserAccountByPda(userPda.toBase58());
 }
