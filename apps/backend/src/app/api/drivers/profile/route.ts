@@ -11,6 +11,7 @@ import {
   created,
   options,
 } from "@/lib/http";
+import { registerUserOnChain } from "@/lib/solana";
 
 export function OPTIONS() {
   return options();
@@ -77,6 +78,25 @@ export async function POST(req: NextRequest) {
       },
       include: { driver: true },
     });
+
+    // Register on-chain only if never registered before
+    if (!user.solanaUserPda) {
+      try {
+        const { signature, userPda } = await registerUserOnChain(
+          user.id,
+          "DRIVER"
+        );
+        await prisma.user.update({
+          where: { id: user.id },
+          data: {
+            solanaUserPda: userPda,
+            solanaRegisterTx: signature,
+          },
+        });
+      } catch (e) {
+        console.error("registerUserOnChain(DRIVER) failed:", e);
+      }
+    }
 
     return created({ userId, role: user.role, driver: user.driver });
   } catch (err: unknown) {
