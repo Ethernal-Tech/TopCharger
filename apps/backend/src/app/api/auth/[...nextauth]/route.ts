@@ -16,26 +16,25 @@ export const authOptions: NextAuthOptions = {
   ],
   callbacks: {
     async jwt({ token, user }) {
-      // Persist sub on initial sign-in
-      if (user && "id" in user) {
-        token.sub = String((user as { id: string }).id);
-      }
-
-     // refresh role from DB (cheap & consistent for MVP)
-    if (token.sub) {
-      const u = await prisma.user.findUnique({
-        where: { id: String(token.sub) },
-        select: { role: true },
-      });
-      token.role = u?.role ?? "UNSET";
-    }
-    return token;
+      // Keep only the user id (sub). No DB fetch here.
+      if (user && "id" in user) token.sub = String((user as { id: string }).id);
+      return token;
     },
     async session({ session, token }) {
       if (session.user && token.sub) {
-        session.user.id = String(token.sub);
+        session.user.id = String(token.sub); // copy sub to session.user.id
       }
-      session.user.role = token.role ?? "UNSET";
+      // Always fetch the latest role from DB
+      // good enough for MVP, be aware the DB hit on every session call
+      if (token.sub) {
+        const u = await prisma.user.findUnique({
+          where: { id: String(token.sub) },
+          select: { role: true },
+        });
+        session.user.role = u?.role ?? "UNSET";
+      } else {
+        session.user.role = "UNSET";
+      }
       return session;
     },
     async redirect({ url, baseUrl }) {
