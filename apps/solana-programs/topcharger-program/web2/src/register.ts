@@ -347,3 +347,79 @@ export async function reserveCharger(
 
   return { tx: sig, matchPda: matchPda.toBase58() };
 }
+
+// confirm_charge: driver (or authority) confirms charging completion; writes to match_account.
+export async function confirmCharge(
+  matchPdaInput: string | PublicKey,
+  wasCorrect: boolean
+) {
+  if (!process.env.ANCHOR_PROVIDER_URL) {
+    throw new Error("ANCHOR_PROVIDER_URL not set. Set it to your RPC (e.g. https://api.devnet.solana.com)");
+  }
+  if (!process.env.ANCHOR_WALLET) {
+    throw new Error("ANCHOR_WALLET not set. Set it to your wallet keypair path (e.g. ~/.config/solana/id.json)");
+  }
+
+  // Find Anchor root (reuse logic inline to avoid dependency on earlier scopes)
+  function findAnchorRoot(startDir: string): string | null {
+    let current = startDir;
+    for (let i = 0; i < 5; i++) {
+      const candidate = path.join(current, "Anchor.toml");
+      if (fs.existsSync(candidate)) return current;
+      const parent = path.dirname(current);
+      if (parent === current) break;
+      current = parent;
+    }
+    return null;
+  }
+  const anchorRoot = findAnchorRoot(__dirname);
+  if (anchorRoot) process.chdir(anchorRoot);
+
+  const anchor: any = await import("@coral-xyz/anchor");
+  const idl = require(path.join(process.cwd(), "target", "idl", "topcharger_program.json"));
+  anchor.setProvider(anchor.AnchorProvider.env());
+  const provider: any = anchor.getProvider();
+  const programId = new PublicKey(
+    process.env.TOPCHARGER_PROGRAM_ID ?? idl.metadata?.address ?? (idl.address as string)
+  );
+
+  const matchPda = typeof matchPdaInput === "string" ? new PublicKey(matchPdaInput) : matchPdaInput;
+
+  // Locate instruction discriminator
+  const ixDesc = idl.instructions.find((ix: any) => ix.name === "confirm_charge");
+  if (!ixDesc) throw new Error("confirm_charge instruction not found in IDL");
+  const discriminator = Buffer.from(ixDesc.discriminator); // 8 bytes
+  const wasCorrectBuf = Buffer.from([wasCorrect ? 1 : 0]);
+  const data = Buffer.concat([discriminator, wasCorrectBuf]);
+
+  const keys = [
+    { pubkey: matchPda, isSigner: false, isWritable: true },
+  ];
+
+  const ix = new anchor.web3.TransactionInstruction({ programId, keys, data });
+  const tx = new anchor.web3.Transaction().add(ix);
+  tx.feePayer = provider.wallet.publicKey;
+
+  async function getLatestBlockhashWithRetry(retries = 3, delayMs = 400) {
+    let lastErr: any;
+    for (let attempt = 1; attempt <= retries; attempt++) {
+      try { return await provider.connection.getLatestBlockhash(); }
+      catch (err: any) {
+        lastErr = err;
+        if (attempt < retries) await new Promise(r => setTimeout(r, delayMs * attempt));
+      }
+    }
+    throw new Error(`failed to get recent blockhash after ${retries} attempts: ${lastErr?.message || lastErr}`);
+  }
+
+  const latest = await getLatestBlockhashWithRetry();
+  tx.recentBlockhash = latest.blockhash;
+  const signed = await provider.wallet.signTransaction(tx);
+  const sig = await provider.connection.sendRawTransaction(signed.serialize());
+  await provider.connection.confirmTransaction({
+    signature: sig,
+    blockhash: latest.blockhash,
+    lastValidBlockHeight: latest.lastValidBlockHeight,
+  });
+  return { tx: sig, matchPda: matchPda.toBase58() };
+}

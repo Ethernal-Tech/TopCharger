@@ -1,5 +1,5 @@
 import { expect } from "chai";
-import { registerUser, createCharger, reserveCharger } from "../src/register.ts";
+import { registerUser, createCharger, reserveCharger, confirmCharge } from "../src/register.ts";
 import crypto from "crypto";
 import { Connection, PublicKey } from "@solana/web3.js";
 import path from "path";
@@ -17,7 +17,7 @@ describe("web2 register + create charger + reserve flow", function () {
     }
 
   // Host user (role 1?)
-  const hostUserHashArr = Array(32).fill(127);
+  const hostUserHashArr = Array(32).fill(129);
   const res = await registerUser(1, hostUserHashArr);
     expect(res).to.have.property("tx");
     expect(res).to.have.property("userPda");
@@ -89,7 +89,7 @@ describe("web2 register + create charger + reserve flow", function () {
     expect(c_supplyType).to.equal(supplyType);
     expect(c_price).to.equal(price);
     // Driver user (different hash) registers
-    const driverUserHashArr = Array(32).fill(128);
+    const driverUserHashArr = Array(32).fill(130);
     const driverRes = await registerUser(2, driverUserHashArr); // role 2 for driver
     expect(driverRes).to.have.property("userPda");
 
@@ -99,24 +99,40 @@ describe("web2 register + create charger + reserve flow", function () {
     console.log("reserve tx:", reserveRes.tx);
     console.log("matchPda:", reserveRes.matchPda);
 
-    // Fetch match account and verify driver hash & charger pubkey inside raw data
-    const matchAcct = await conn.getAccountInfo(new PublicKey(reserveRes.matchPda), "confirmed");
+    // Fetch match account and verify driver hash & charger pubkey inside raw data (pre-confirm)
+    const matchPdaPk = new PublicKey(reserveRes.matchPda);
+    let matchAcct = await conn.getAccountInfo(matchPdaPk, "confirmed");
     expect(matchAcct).to.not.be.null;
     if (!matchAcct) return;
-    const mdata = matchAcct.data;
-    // Discriminator (8) + driver_user_hash (32) + charger pubkey (32) + status (1) + confirmed_correct (1)
+    let mdata = matchAcct.data;
     if (mdata.length < 8 + 32 + 32 + 1 + 1) {
       throw new Error(`unexpected match account size: ${mdata.length}`);
     }
     let moff = 8;
-    const m_driverHash = mdata.slice(moff, moff + 32); moff += 32;
-    const m_chargerPub = new PublicKey(mdata.slice(moff, moff + 32)); moff += 32;
-    const m_status = mdata[moff]; moff += 1;
-    const m_confirmed = mdata[moff] === 1;
+    let m_driverHash = mdata.slice(moff, moff + 32); moff += 32;
+    let m_chargerPub = new PublicKey(mdata.slice(moff, moff + 32)); moff += 32;
+    let m_status = mdata[moff]; moff += 1;
+    let m_confirmed = mdata[moff] === 1;
     expect(Array.from(m_driverHash)).to.deep.equal(driverUserHashArr);
     expect(m_chargerPub.toBase58()).to.equal(chargerRes.chargerPda);
-    // status semantics unknown; just assert it is a number 0-3
     expect(m_status).to.be.lessThan(10);
     expect(m_confirmed).to.be.false;
+
+    // Confirm charge (was correct)
+    const confirmRes = await confirmCharge(reserveRes.matchPda, true);
+    expect(confirmRes).to.have.property("tx");
+    console.log("confirm tx:", confirmRes.tx);
+
+    // Refetch and assert confirmed flag flipped
+    matchAcct = await conn.getAccountInfo(matchPdaPk, "confirmed");
+    expect(matchAcct).to.not.be.null;
+    if (!matchAcct) return;
+    mdata = matchAcct.data;
+    moff = 8;
+    m_driverHash = mdata.slice(moff, moff + 32); moff += 32;
+    m_chargerPub = new PublicKey(mdata.slice(moff, moff + 32)); moff += 32;
+    m_status = mdata[moff]; moff += 1;
+    m_confirmed = mdata[moff] === 1;
+    expect(m_confirmed).to.be.true;
   });
 });
