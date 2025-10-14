@@ -262,3 +262,88 @@ export async function createCharger(
 
   return { tx: sig, chargerPda: chargerPda.toBase58() };
 }
+
+// reserve_charger: driver reserves an existing charger. Creates/allocates match_account PDA.
+export async function reserveCharger(
+  chargerPubkey: string | PublicKey,
+  driverUserHashArr?: number[] | Buffer
+) {
+  if (!process.env.ANCHOR_PROVIDER_URL) {
+    throw new Error("ANCHOR_PROVIDER_URL not set. Set it to your RPC (e.g. https://api.devnet.solana.com)");
+  }
+  if (!process.env.ANCHOR_WALLET) {
+    throw new Error("ANCHOR_WALLET not set. Set it to your wallet keypair path (e.g. ~/.config/solana/id.json)");
+  }
+
+  const anchor: any = await import("@coral-xyz/anchor");
+  const idl = require(path.join(process.cwd(), "target", "idl", "topcharger_program.json"));
+  anchor.setProvider(anchor.AnchorProvider.env());
+  const provider: any = anchor.getProvider();
+  const programId = new PublicKey(
+    process.env.TOPCHARGER_PROGRAM_ID ?? idl.metadata?.address ?? (idl.address as string)
+  );
+
+  const chargerKey = typeof chargerPubkey === "string" ? new PublicKey(chargerPubkey) : chargerPubkey;
+
+  // Prepare 32-byte driver user hash
+  let driverHashBuf: Buffer;
+  if (!driverUserHashArr) {
+    driverHashBuf = Buffer.alloc(32, 0);
+    driverHashBuf[0] = 7; // sentinel value for default
+  } else if (Array.isArray(driverUserHashArr)) {
+    driverHashBuf = Buffer.from(driverUserHashArr);
+  } else {
+    driverHashBuf = Buffer.from(driverUserHashArr);
+  }
+  if (driverHashBuf.length !== 32) {
+    const tmp = Buffer.alloc(32, 0);
+    driverHashBuf.copy(tmp, 0, 0, Math.min(driverHashBuf.length, 32));
+    driverHashBuf = tmp;
+  }
+
+  // Derive match_account PDA: seeds ["match", charger_pubkey]
+  const [matchPda] = await PublicKey.findProgramAddress(
+    [Buffer.from("match"), chargerKey.toBuffer()],
+    programId
+  );
+
+  const ixDesc = idl.instructions.find((ix: any) => ix.name === "reserve_charger");
+  if (!ixDesc) throw new Error("reserve_charger instruction not found in IDL");
+  const discriminator = Buffer.from(ixDesc.discriminator); // 8 bytes
+  const data = Buffer.concat([discriminator, driverHashBuf]); // arg is driver_user_hash [u8;32]
+
+  const keys = [
+    { pubkey: chargerKey, isSigner: false, isWritable: true },
+    { pubkey: matchPda, isSigner: false, isWritable: true },
+    { pubkey: provider.wallet.publicKey, isSigner: true, isWritable: true }, // authority (driver wallet)
+    { pubkey: anchor.web3.SystemProgram.programId, isSigner: false, isWritable: false },
+  ];
+
+  const ix = new anchor.web3.TransactionInstruction({ programId, keys, data });
+  const tx = new anchor.web3.Transaction().add(ix);
+  tx.feePayer = provider.wallet.publicKey;
+
+  async function getLatestBlockhashWithRetry(retries = 3, delayMs = 500) {
+    let lastErr: any;
+    for (let attempt = 1; attempt <= retries; attempt++) {
+      try {
+        return await provider.connection.getLatestBlockhash();
+      } catch (err: any) {
+        lastErr = err;
+        if (attempt < retries) await new Promise(r => setTimeout(r, delayMs * attempt));
+      }
+    }
+    throw new Error(`failed to get recent blockhash after ${retries} attempts: ${lastErr?.message || lastErr}`);
+  }
+  const latest = await getLatestBlockhashWithRetry();
+  tx.recentBlockhash = latest.blockhash;
+  const signed = await provider.wallet.signTransaction(tx);
+  const sig = await provider.connection.sendRawTransaction(signed.serialize());
+  await provider.connection.confirmTransaction({
+    signature: sig,
+    blockhash: latest.blockhash,
+    lastValidBlockHeight: latest.lastValidBlockHeight,
+  });
+
+  return { tx: sig, matchPda: matchPda.toBase58() };
+}
