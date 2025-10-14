@@ -46,7 +46,6 @@ describe("topcharger-program-multi", () => {
       const powerKw = 11 + i;
       const supplyType = i % 2;
       const price = new BN(500 + i * 100);
-      const location = `Location ${i + 1}`;
 
       const chargerIdBuf = chargerId.toArrayLike(Buffer, "le", 8);
       const [chargerPda] = await anchor.web3.PublicKey.findProgramAddress(
@@ -55,7 +54,7 @@ describe("topcharger-program-multi", () => {
       );
 
       await program.methods
-        .createCharger(Array.from(hostUserHash), chargerId, powerKw, supplyType, price, location)
+        .createCharger(Array.from(hostUserHash), chargerId, powerKw, supplyType, price)
         .accounts({
           charger: chargerPda,
           wallet: host.publicKey,

@@ -27,7 +27,6 @@ pub mod topcharger_program {
         power_kw: u16,
         supply_type: u8, // e.g. 0=renewable energy source, 1=non-renewable energy source
         price: u64,
-        location: String,
     ) -> Result<()> {
         let charger = &mut ctx.accounts.charger;
         charger.user_id_hash = user_id_hash;
@@ -38,12 +37,6 @@ pub mod topcharger_program {
         charger.price = price;
         charger.status = 0; // available
 
-        // store up to 64 bytes of location text
-        let mut buf = [0u8; 64];
-        let bytes = location.as_bytes();
-        let len = bytes.len().min(64);
-        buf[..len].copy_from_slice(&bytes[..len]);
-        charger.location = buf;
         Ok(())
     }
 
@@ -159,7 +152,7 @@ pub struct ChargerAccount {
     pub supply_type: u8,
     pub price: u64,
     pub status: u8, // 0=available, 1=allocated
-    pub location: [u8; 64],
+    //pub location: [u8; 64],
 }
 
 /// Match between driver and charger
