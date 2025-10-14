@@ -10,6 +10,7 @@ import {
   notFound,
   unauthorized,
 } from "@/lib/http";
+import { registerUserOnChain } from "@/lib/solana";
 
 export async function OPTIONS() {
   return options();
@@ -51,6 +52,23 @@ export async function POST(req: NextRequest) {
     },
     include: { host: true },
   });
+
+  // Register on-chain only if never registered before
+  if (!user.solanaUserPda) {
+    try {
+      const { signature, userPda } = await registerUserOnChain(user.id, "HOST");
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          solanaUserPda: userPda,
+          solanaRegisterTx: signature,
+        },
+      });
+    } catch (e) {
+      console.error("registerUserOnChain(HOST) failed:", e);
+      // Non-fatal for MVP
+    }
+  }
 
   return created({ userId: user.id, role: user.role, host: user.host });
 }

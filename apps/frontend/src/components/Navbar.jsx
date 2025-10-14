@@ -1,6 +1,5 @@
-// src/components/Navbar.jsx
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 const BACKEND = "http://localhost:3000";
 const FRONTEND = "http://localhost:5173";
@@ -9,8 +8,8 @@ export default function Navbar() {
     const [walletAddress, setWalletAddress] = useState(null);
     const [googleToken, setGoogleToken] = useState(null);
     const [role, setRole] = useState(null); // HOST or DRIVER
+    const navigate = useNavigate();
 
-    // Fetch Google token and user info
     useEffect(() => {
         (async () => {
             try {
@@ -33,13 +32,20 @@ export default function Navbar() {
                             const { user } = await meRes.json();
                             setRole(user?.role || null);
                         }
+                    } else {
+                        // No token, redirect to login/dashboard
+                        navigate("/");
                     }
+                } else {
+                    // Token fetch failed, redirect
+                    navigate("/");
                 }
             } catch (err) {
                 console.error("Failed to fetch auth token or user info", err);
+                navigate("/");
             }
         })();
-    }, []);
+    }, [navigate]);
 
     const handleWalletDisconnect = async () => {
         setWalletAddress(null);
@@ -53,15 +59,18 @@ export default function Navbar() {
 
     return (
         <nav className="bg-white/90 backdrop-blur-md shadow-md p-4 flex justify-between items-center">
-            {/* Left side: Logo + Nav Links */}
             <div className="flex items-center gap-6">
                 <h1 className="text-2xl font-bold text-green-900">⚡ TopCharger</h1>
 
                 <div className="flex gap-4 text-green-800 font-medium">
-                    {/* Conditional links */}
                     {googleToken && role === "HOST" && (
                         <Link to="/my-chargers" className="hover:text-green-600 transition">
                             My Chargers
+                        </Link>
+                    )}
+                    {googleToken && role === "DRIVER" && (
+                        <Link to="/chargers" className="hover:text-green-600 transition">
+                            Find Chargers
                         </Link>
                     )}
                     {googleToken && (role === "HOST" || role === "DRIVER") && (
@@ -72,7 +81,6 @@ export default function Navbar() {
                 </div>
             </div>
 
-            {/* Right side: Logout / Disconnect */}
             <div className="flex items-center gap-4">
                 {walletAddress && (
                     <button
@@ -82,7 +90,6 @@ export default function Navbar() {
                         Disconnect Wallet
                     </button>
                 )}
-
                 {googleToken && !walletAddress && (
                     <button
                         onClick={handleGoogleLogout}
