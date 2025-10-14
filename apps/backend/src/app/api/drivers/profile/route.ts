@@ -3,7 +3,14 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
 import { upsertDriverProfileSchema } from "@/lib/validation";
 import { requireUserId } from "@/lib/api-auth";
-import { badRequest, created, options } from "@/lib/http";
+import {
+  ok,
+  notFound,
+  unauthorized,
+  badRequest,
+  created,
+  options,
+} from "@/lib/http";
 
 export function OPTIONS() {
   return options();
@@ -87,29 +94,12 @@ export async function GET(req: NextRequest) {
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: {
-        id: true,
-        email: true,
-        role: true,
-        driver: true,
-      },
+      select: { id: true, email: true, role: true, driver: true },
     });
 
-    if (!user?.driver) {
-      return new Response(JSON.stringify({ error: "No driver profile" }), {
-        status: 404,
-        headers: { "Content-Type": "application/json" },
-      });
-    }
-
-    return new Response(JSON.stringify(user), {
-      headers: { "Content-Type": "application/json" },
-    });
-  } catch (err) {
-    if (isUnauthorized(err)) {
-      return new Response("Unauthorized", { status: 401 });
-    }
-    console.error("GET /api/drivers/profile failed:", err);
-    return new Response("Internal Server Error", { status: 500 });
+    if (!user?.driver) return notFound("No driver profile");
+    return ok(user);
+  } catch {
+    return unauthorized();
   }
 }
