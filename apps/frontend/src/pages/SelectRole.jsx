@@ -78,7 +78,12 @@ export default function SelectRole() {
             const updatedUser = await res.json();
             sessionStorage.setItem("tc_user", JSON.stringify(updatedUser));
 
-            window.location.href = FRONTEND; // redirect to dashboard
+            // Redirect based on role
+            if (role === "hosts") {
+                window.location.href = "/my-chargers";
+            } else if (role === "drivers") {
+                window.location.href = "/chargers";
+            }
         } catch (err) {
             console.error(err);
             setError(err.message);
