@@ -1,139 +1,197 @@
-// apps/frontend/src/pages/AllChargers.jsx (for DRIVER role)
-import React, { useState, useEffect } from "react";
-import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
+// src/pages/Chargers.jsx
+import React, { useState, useEffect, useRef } from "react";
+import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
+import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
 const BACKEND = "http://localhost:3000";
 
-export default function AllChargers() {
+// Marker icons
+const greenIcon = new L.Icon({
+    iconUrl: "https://cdn.jsdelivr.net/gh/pointhi/leaflet-color-markers@master/img/marker-icon-2x-green.png",
+    shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    popupAnchor: [1, -34],
+    shadowSize: [41, 41],
+});
+
+const redIcon = new L.Icon({
+    iconUrl: "https://cdn.jsdelivr.net/gh/pointhi/leaflet-color-markers@master/img/marker-icon-2x-red.png",
+    shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    popupAnchor: [1, -34],
+    shadowSize: [41, 41],
+});
+
+// Fly map to selected position
+function FlyTo({ position }) {
+    const map = useMap();
+    useEffect(() => {
+        if (position) map.flyTo(position, 16);
+    }, [position, map]);
+    return null;
+}
+
+export default function Chargers() {
     const [chargers, setChargers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [roleChecked, setRoleChecked] = useState(false);
+    const [selectedPosition, setSelectedPosition] = useState(null);
+    const popupRefs = useRef({});
 
-    // Fetch ALL chargers for drivers
-    const fetchChargers = async () => {
-        setLoading(true);
-        setError(null);
-        try {
-            const res = await fetch(`${BACKEND}/api/chargers`, {
-                method: "GET",
-                credentials: "include",
-            });
-            if (!res.ok) throw new Error(`Failed to fetch chargers: ${res.status}`);
-            const data = await res.json();
-
-            const parsed = Array.isArray(data)
-                ? data
-                : Array.isArray(data.items)
-                    ? data.items
-                    : Array.isArray(data.chargers)
-                        ? data.chargers
-                        : [];
-
-            setChargers(parsed);
-        } catch (err) {
-            console.error(err);
-            setError(err.message || "Unknown error");
-        } finally {
-            setLoading(false);
-        }
-    };
-
+    // Check user role
     useEffect(() => {
-        fetchChargers();
+        const checkRole = async () => {
+            try {
+                const res = await fetch(`${BACKEND}/api/auth/me`, {
+                    method: "GET",
+                    credentials: "include",
+                });
+                const data = await res.json();
+                if (!res.ok || !data.user || data.user.role !== "DRIVER") {
+                    window.location.href = "/";
+                    return;
+                }
+                setRoleChecked(true);
+            } catch (err) {
+                console.error("Role check failed:", err);
+                window.location.href = "/";
+            }
+        };
+        checkRole();
     }, []);
 
-    // Use first charger as map center (fallback if empty)
+    // Fetch chargers
+    useEffect(() => {
+        if (!roleChecked) return;
+
+        const fetchChargers = async () => {
+            setLoading(true);
+            setError(null);
+            try {
+                const res = await fetch(`${BACKEND}/api/chargers`, {
+                    method: "GET",
+                    credentials: "include",
+                });
+                const data = await res.json();
+                const parsed = Array.isArray(data)
+                    ? data
+                    : Array.isArray(data.items)
+                        ? data.items
+                        : Array.isArray(data.chargers)
+                            ? data.chargers
+                            : [];
+                setChargers(parsed);
+            } catch (err) {
+                console.error("Fetching chargers failed:", err);
+                setError(err.message || "Unknown error");
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchChargers();
+    }, [roleChecked]);
+
     const mapCenter = chargers.length
         ? [Number(chargers[0].latitude), Number(chargers[0].longitude)]
         : [45.267136, 19.833549];
 
+    if (!roleChecked) return <p className="text-green-900 p-6">Checking access...</p>;
+    if (loading) return <p className="text-blue-900 p-6">Loading chargers...</p>;
+    if (error) return <p className="text-red-900 p-6">Error: {error}</p>;
+
+    const flyToCharger = (charger) => {
+        const position = [Number(charger.latitude), Number(charger.longitude)];
+        setSelectedPosition(position);
+
+        // Open popup
+        const popup = popupRefs.current[charger.id || charger._id];
+        if (popup) popup.openPopup();
+    };
+
     return (
         <div className="min-h-screen bg-green-100 p-6 flex flex-col items-center">
-            <div className="bg-white p-6 rounded-2xl shadow-md w-full max-w-5xl mb-8">
-                {/* Header */}
-                <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center">
-                        <div className="bg-blue-700 text-white p-2 rounded mr-2">🚗</div>
-                        <h1 className="text-2xl font-bold text-green-900">Available Chargers</h1>
-                    </div>
-                </div>
+            <h1 className="text-2xl font-bold mb-4">All Chargers</h1>
 
-                {/* Map */}
-                <div className="h-96 w-full rounded-2xl overflow-hidden mb-6">
-                    <MapContainer
-                        center={mapCenter}
-                        zoom={13}
-                        style={{ height: "100%", width: "100%" }}
+            {/* Map */}
+            <MapContainer center={mapCenter} zoom={13} style={{ height: "400px", width: "100%" }}>
+                <TileLayer
+                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    attribution="&copy; OpenStreetMap contributors"
+                />
+                {chargers.map((charger) => (
+                    <Marker
+                        key={charger.id || charger._id}
+                        position={[Number(charger.latitude), Number(charger.longitude)]}
+                        icon={charger.available ? greenIcon : redIcon}
+                        ref={(el) => {
+                            if (el) popupRefs.current[charger.id || charger._id] = el.getPopup();
+                        }}
                     >
-                        <TileLayer
-                            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                            attribution="&copy; OpenStreetMap contributors"
-                        />
-                        {chargers.map((c) => (
-                            <Marker
-                                key={c.id}
-                                position={[Number(c.latitude), Number(c.longitude)]}
-                            >
-                                <Popup>
-                                    <strong>{c.name}</strong><br />
-                                    Price: ${c.pricePerKwh.toFixed(2)}<br />
-                                    Connector: {c.connector}<br />
-                                    Status: {c.available ? "Open" : "Closed"}
-                                </Popup>
-                            </Marker>
-                        ))}
-                    </MapContainer>
-                </div>
+                        <Popup>
+                            <strong>{charger.name}</strong>
+                            <br />
+                            {charger.address || "No address"}
+                            <br />
+                            Power: {charger.powerKw} kW
+                            <br />
+                            Price: {charger.pricePerKwh} €/kWh
+                            <br />
+                            {charger.available ? "Available" : "Occupied"}
+                        </Popup>
+                    </Marker>
+                ))}
+                {selectedPosition && <FlyTo position={selectedPosition} />}
+            </MapContainer>
 
-                {/* Chargers Table */}
-                {loading ? (
-                    <p className="text-green-900">Loading chargers...</p>
-                ) : error ? (
-                    <p className="text-red-600">Error: {error}</p>
-                ) : chargers.length === 0 ? (
-                    <p className="text-green-900">No chargers are available at the moment.</p>
-                ) : (
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left border-collapse">
-                            <thead>
-                                <tr className="bg-green-200 text-green-900">
-                                    <th className="p-3">Name</th>
-                                    <th className="p-3">Price ($/kWh)</th>
-                                    <th className="p-3">Latitude</th>
-                                    <th className="p-3">Longitude</th>
-                                    <th className="p-3">Connector</th>
-                                    <th className="p-3">Status</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {chargers.map((c) => (
-                                    <tr key={c.id} className="border-b hover:bg-green-50 transition-colors">
-                                        <td className="p-3 font-semibold text-green-900">{c.name || "-"}</td>
-                                        <td className="p-3 text-green-800">
-                                            {typeof c.pricePerKwh === "number"
-                                                ? `$${c.pricePerKwh.toFixed(2)}`
-                                                : "-"}
-                                        </td>
-                                        <td className="p-3 text-green-800">{c.latitude ?? "-"}</td>
-                                        <td className="p-3 text-green-800">{c.longitude ?? "-"}</td>
-                                        <td className="p-3 text-green-800">{c.connector || "-"}</td>
-                                        <td className="p-3">
-                                            <span
-                                                className={`px-3 py-1 rounded-full font-semibold ${c.available
-                                                        ? "bg-green-600 text-white"
-                                                        : "bg-gray-300 text-gray-700"
-                                                    }`}
-                                            >
-                                                {c.available ? "Open" : "Closed"}
-                                            </span>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                )}
+            {/* List */}
+            <div className="mt-6 w-full max-w-xl">
+                <h2 className="text-xl font-semibold mb-2">Charger List</h2>
+                <ul className="bg-white p-4 rounded shadow space-y-2">
+                    {chargers.map((charger) => (
+                        <li
+                            key={charger.id || charger._id}
+                            className="border-b pb-2 flex justify-between items-center"
+                        >
+                            <div>
+                                {/* Name clickable to fly to map */}
+                                <span
+                                    className="font-bold text-blue-600 cursor-pointer hover:underline"
+                                    onClick={() => flyToCharger(charger)}
+                                >
+                                    {charger.name}
+                                </span>
+                                <br />
+                                {charger.address || "No address"}
+                                <br />
+                                Lat: {charger.latitude}, Lng: {charger.longitude}
+                                <br />
+                                <span
+                                    className={`text-sm font-medium ${charger.available ? "text-green-600" : "text-red-600"
+                                        }`}
+                                >
+                                    {charger.available ? "Available" : "Occupied"}
+                                </span>
+                            </div>
+
+                            {charger.available && (
+                                <button
+                                    className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700"
+                                    onClick={() => {
+                                        console.log("Starting charger:", charger.name);
+                                        // add start charging logic here
+                                    }}
+                                >
+                                    Start
+                                </button>
+                            )}
+                        </li>
+                    ))}
+                </ul>
             </div>
         </div>
     );
