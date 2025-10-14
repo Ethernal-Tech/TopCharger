@@ -123,3 +123,138 @@ if (require.main === module) {
     }
   })();
 }
+
+export async function createCharger(
+  userIdHashArr: number[] | Buffer,
+  chargerId: number | bigint,
+  powerKw: number,
+  supplyType: number,
+  price: number | bigint,
+  location: number[] | Buffer // Changed type to match userIdHashArr
+) {
+  if (!process.env.ANCHOR_PROVIDER_URL) {
+    throw new Error("ANCHOR_PROVIDER_URL not set. Set it to your RPC (e.g. http://127.0.0.1:8899)");
+  }
+  if (!process.env.ANCHOR_WALLET) {
+    throw new Error("ANCHOR_WALLET not set. Set it to your wallet keypair path (e.g. ~/.config/solana/id.json)");
+  }
+
+  const probableProgramRoot = path.resolve(__dirname, "..", "..");
+  const anchorTomlPath = path.join(probableProgramRoot, "Anchor.toml");
+  if (fs.existsSync(anchorTomlPath)) {
+    process.chdir(probableProgramRoot);
+  }
+
+  const anchor: any = await import("@coral-xyz/anchor");
+  const idl = require(path.join(process.cwd(), "target", "idl", "topcharger_program.json"));
+
+  anchor.setProvider(anchor.AnchorProvider.env());
+  const provider: any = anchor.getProvider();
+  const programId = new PublicKey(
+    process.env.TOPCHARGER_PROGRAM_ID ?? idl.metadata?.address ?? (idl.address as string)
+  );
+
+  // Normalize user_id_hash
+  let userHashBuf: Buffer;
+  if (Array.isArray(userIdHashArr)) {
+    userHashBuf = Buffer.from(userIdHashArr);
+  } else {
+    userHashBuf = Buffer.from(userIdHashArr);
+  }
+  if (userHashBuf.length !== 32) {
+    const tmp = Buffer.alloc(32, 0);
+    userHashBuf.copy(tmp, 0, 0, Math.min(userHashBuf.length, 32));
+    userHashBuf = tmp;
+  }
+
+  // Normalize location to [u8; 64]
+  let locationBuf: Buffer;
+  if (Array.isArray(location)) {
+    locationBuf = Buffer.from(location);
+  } else {
+    locationBuf = Buffer.from(location);
+  }
+  if (locationBuf.length !== 64) {
+    const tmp = Buffer.alloc(64, 0);
+    locationBuf.copy(tmp, 0, 0, Math.min(locationBuf.length, 64));
+    locationBuf = tmp;
+  }
+
+  // charger_id as u64 le
+  const chargerIdBuf = Buffer.alloc(8);
+  chargerIdBuf.writeBigUInt64LE(BigInt(chargerId));
+  // power_kw as u16 le
+  const powerKwBuf = Buffer.alloc(2);
+  powerKwBuf.writeUInt16LE(powerKw);
+  // supply_type as u8
+  const supplyTypeBuf = Buffer.from([supplyType & 0xff]);
+  // price as u64 le
+  const priceBuf = Buffer.alloc(8);
+  priceBuf.writeBigUInt64LE(BigInt(price));
+
+  // PDA: ["charger", user_id_hash, charger_id.to_le_bytes()]
+  const [chargerPda] = await PublicKey.findProgramAddress(
+    [Buffer.from("charger"), userHashBuf, chargerIdBuf],
+    programId
+  );
+
+  // Find the instruction descriptor in the IDL
+  const ixDesc = idl.instructions.find((ix: any) => ix.name === "create_charger");
+  if (!ixDesc) throw new Error("create_charger instruction not found in IDL");
+  const discriminator = Buffer.from(ixDesc.discriminator);
+
+  // Build args: user_id_hash [32], charger_id u64, power_kw u16, supply_type u8, price u64, location [u8; 64]
+  const argsBuf = Buffer.concat([
+    userHashBuf,
+    chargerIdBuf,
+    powerKwBuf,
+    supplyTypeBuf,
+    priceBuf,
+    locationBuf,
+  ]);
+  const data = Buffer.concat([discriminator, argsBuf]);
+
+  const keys = [
+    { pubkey: chargerPda, isSigner: false, isWritable: true },
+    { pubkey: provider.wallet.publicKey, isSigner: false, isWritable: false }, // wallet
+    { pubkey: provider.wallet.publicKey, isSigner: true, isWritable: true },   // authority
+    { pubkey: anchor.web3.SystemProgram.programId, isSigner: false, isWritable: false },
+  ];
+
+  const ix = new anchor.web3.TransactionInstruction({
+    programId,
+    keys,
+    data,
+  });
+
+  const tx = new anchor.web3.Transaction().add(ix);
+  tx.feePayer = provider.wallet.publicKey;
+
+  async function getLatestBlockhashWithRetry(retries = 3, delayMs = 500) {
+    let lastErr: any;
+    for (let attempt = 1; attempt <= retries; attempt++) {
+      try {
+        return await provider.connection.getLatestBlockhash();
+      } catch (err: any) {
+        lastErr = err;
+        console.error(
+          `getLatestBlockhash attempt ${attempt} failed (url=${process.env.ANCHOR_PROVIDER_URL}):`,
+          err && err.message ? err.message : err
+        );
+        if (attempt < retries) await new Promise((r) => setTimeout(r, delayMs * attempt));
+      }
+    }
+    throw new Error(
+      `failed to get recent blockhash after ${retries} attempts: ${lastErr?.message || lastErr}`
+    );
+  }
+
+  const latest = await getLatestBlockhashWithRetry(3, 500);
+  tx.recentBlockhash = latest.blockhash;
+
+  const signed = await provider.wallet.signTransaction(tx);
+  const sig = await provider.connection.sendRawTransaction(signed.serialize());
+  await provider.connection.confirmTransaction({ signature: sig, blockhash: latest.blockhash, lastValidBlockHeight: latest.lastValidBlockHeight });
+
+  return { tx: sig, chargerPda: chargerPda.toBase58() };
+}
