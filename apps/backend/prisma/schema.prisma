@@ -103,6 +103,10 @@ model Charger {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  //on-chain identity
+  solanaChargerPda String?
+  solanaCreateTx   String?
+
   sessions ChargingSession[]
 
   @@index([hostId])

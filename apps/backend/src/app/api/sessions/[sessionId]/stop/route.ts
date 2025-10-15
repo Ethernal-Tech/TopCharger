@@ -3,9 +3,14 @@ import { prisma } from "@/lib/db";
 import { badRequest, forbidden, ok, options } from "@/lib/http";
 import { requireDriverContext } from "@/lib/authz";
 
-export async function OPTIONS() { return options(); }
+export async function OPTIONS() {
+  return options();
+}
 
-export async function POST(req: NextRequest, { params }: { params: { sessionId: string } }) {
+export async function POST(
+  req: NextRequest,
+  { params }: { params: { sessionId: string } }
+) {
   try {
     const { userId } = await requireDriverContext(req);
     const { sessionId } = params;
@@ -17,8 +22,7 @@ export async function POST(req: NextRequest, { params }: { params: { sessionId: 
     if (session.status !== "ACTIVE") return badRequest("Session is not ACTIVE");
 
     const now = new Date();
-    const started = session.startedAt;
-    const hours = Math.max(0, (now.getTime() - started.getTime()) / 3600000);
+    const hours = Math.max(0, (now.getTime() - session.startedAt.getTime()) / 3_600_000);
 
     const energyKwh = session.powerKwSnapshot * hours;
     const costTotal = energyKwh * session.pricePerKwhSnapshot;
@@ -41,8 +45,10 @@ export async function POST(req: NextRequest, { params }: { params: { sessionId: 
     });
 
     return ok({ session: updated });
-  } catch (e: any) {
-    if (e?.status === 403) return new Response(e.message, { status: 403 });
+  } catch (e: unknown) {
+    const status = (e as { status?: number } | null)?.status;
+    const message = e instanceof Error ? e.message : typeof e === "string" ? e : "Internal Server Error";
+    if (status === 403) return new Response(message, { status: 403 });
     console.error("POST /api/sessions/:id/stop failed:", e);
     return new Response("Internal Server Error", { status: 500 });
   }

@@ -2,33 +2,33 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
 import { ok, options } from "@/lib/http";
-import type { Prisma, ConnectorType } from "@/generated/prisma"; // <- matches your generator output
+import type { Prisma } from "@/generated/prisma"; // type-only OK
+import { ConnectorType } from "@/generated/prisma"; // <-- value import
 
-// Type guard to keep TS happy and avoid `any`
 function isConnectorType(v: string): v is ConnectorType {
   return (Object.values(ConnectorType) as string[]).includes(v);
 }
 
-// CORS preflight
 export function OPTIONS() {
   return options();
 }
 
-// Public list of ALL chargers (paginated, newest first)
 export async function GET(req: NextRequest) {
   const url = new URL(req.url);
 
   const page = Math.max(1, Number(url.searchParams.get("page") ?? "1"));
-  const pageSize = Math.min(Math.max(1, Number(url.searchParams.get("pageSize") ?? "20")), 100);
+  const pageSize = Math.min(
+    Math.max(1, Number(url.searchParams.get("pageSize") ?? "20")),
+    100
+  );
 
-  // Optional simple filters
-  const connectorParam = url.searchParams.get("connector"); // e.g. TYPE2
-  const availableParam = url.searchParams.get("available"); // "true" | "false" | null
+  const connectorParam = url.searchParams.get("connector");
+  const availableParam = url.searchParams.get("available");
 
   const where: Prisma.ChargerWhereInput = {};
 
   if (connectorParam && isConnectorType(connectorParam)) {
-    where.connector = connectorParam; // typed as ConnectorType
+    where.connector = connectorParam;
   }
 
   if (availableParam === "true") where.available = true;
