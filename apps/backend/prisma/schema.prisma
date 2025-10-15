@@ -103,6 +103,12 @@ model Charger {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  //u64 identifier used for PDA seed (derived & persisted)
+  chainId          BigInt?     @db.BigInt
+  //on-chain identity
+  solanaChargerPda String?
+  solanaCreateTx   String?
+
   sessions ChargingSession[]
 
   @@index([hostId])
