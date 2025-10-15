@@ -7,6 +7,7 @@ import {
   Transaction,
   SystemProgram,
   AccountInfo,
+  sendAndConfirmTransaction
 } from "@solana/web3.js";
 import * as anchor from "@coral-xyz/anchor";
 import type { Idl } from "@coral-xyz/anchor";
@@ -351,4 +352,106 @@ export async function createChargerOnChain(args: {
     signature: sig,
     chargerPda: chargerPda.toBase58(),
   };
+}
+
+function getProgramId(): PublicKey {
+  const pid = process.env.TOPCHARGER_PROGRAM_ID;
+  if (!pid) throw new Error("TOPCHARGER_PROGRAM_ID not set");
+  return new PublicKey(pid);
+}
+
+type IdlInstruction = {
+  name: string;
+  discriminator?: number[]; // Anchor JSON IDL contains discriminator in recent versions
+};
+
+type TopchargerIdl = {
+  instructions: IdlInstruction[];
+};
+
+function loadIdl(): TopchargerIdl {
+  const idlPath =
+    process.env.TOPCHARGER_IDL_PATH ??
+    path.join(process.cwd(), "apps", "backend", "target", "idl", "topcharger_program.json");
+  const raw = fs.readFileSync(idlPath, "utf8");
+  const json = JSON.parse(raw) as unknown;
+  // minimal runtime validation
+  const asIdl = json as Partial<TopchargerIdl>;
+  if (!asIdl || !Array.isArray(asIdl.instructions)) {
+    throw new Error("Invalid IDL: missing instructions");
+  }
+  return asIdl as TopchargerIdl;
+}
+
+function discriminatorFor(ixName: string): Buffer {
+  const idl = loadIdl();
+  const ix = idl.instructions.find((i) => i.name === ixName);
+  if (!ix?.discriminator) throw new Error(`IDL discriminator not found for ${ixName}`);
+  return Buffer.from(ix.discriminator);
+}
+
+export async function deriveMatchPda(chargerPubkey: PublicKey): Promise<PublicKey> {
+  const programId = getProgramId();
+  const [pda] = PublicKey.findProgramAddressSync(
+    [Buffer.from("match"), chargerPubkey.toBuffer()],
+    programId
+  );
+  return pda;
+}
+
+export type ReserveChargerArgs = {
+  backendUserId: string;   // driver backend id -> hashed on-chain
+  chargerPda: string;      // base58 PDA of ChargerAccount (must exist)
+};
+
+export async function sendReserveCharger(
+  args: ReserveChargerArgs
+): Promise<{ signature: string; matchPda: string }> {
+  const programId = getProgramId();
+  const charger = new PublicKey(args.chargerPda);
+  const matchPda = await deriveMatchPda(charger);
+
+  const disc = discriminatorFor("reserve_charger");
+  const driverHash = sha256_32(args.backendUserId); // [u8;32]
+  const data = Buffer.concat([disc, driverHash]);
+
+  const keys = [
+    { pubkey: charger, isSigner: false, isWritable: true },
+    { pubkey: matchPda, isSigner: false, isWritable: true },
+    { pubkey: payer.publicKey, isSigner: true, isWritable: true }, // authority
+    { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+  ];
+
+  const ix = new TransactionInstruction({ programId, keys, data });
+  const tx = new Transaction().add(ix);
+  const signature = await sendAndConfirmTransaction(connection, tx, [payer], {
+    commitment: "confirmed",
+  });
+
+  return { signature, matchPda: matchPda.toBase58() };
+}
+
+export type ConfirmChargeArgs = {
+  matchPda: string;     // base58 PDA of MatchAccount
+  wasCorrect: boolean;  // MVP: true
+};
+
+export async function sendConfirmCharge(
+  args: ConfirmChargeArgs
+): Promise<{ signature: string }> {
+  const programId = getProgramId();
+  const matchPubkey = new PublicKey(args.matchPda);
+
+  const disc = discriminatorFor("confirm_charge");
+  const data = Buffer.concat([disc, Buffer.from([args.wasCorrect ? 1 : 0])]);
+
+  const keys = [{ pubkey: matchPubkey, isSigner: false, isWritable: true }];
+
+  const ix = new TransactionInstruction({ programId, keys, data });
+  const tx = new Transaction().add(ix);
+  const signature = await sendAndConfirmTransaction(connection, tx, [payer], {
+    commitment: "confirmed",
+  });
+
+  return { signature };
 }
