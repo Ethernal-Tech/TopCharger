@@ -130,6 +130,8 @@ model ChargingSession {
   stoppedAt DateTime?
   energyKwh Float? // computed in STOP if you don’t have real meter
   costTotal Float? // computed in STOP
+  
+  solanaMatchPda       String?     // PDA of MatchAccount
 
   // Future blockchain hooks
   startTxSig String?
