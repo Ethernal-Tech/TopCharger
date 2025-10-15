@@ -4,6 +4,17 @@ import { requireUserId } from "@/lib/api-auth";
 import { createChargerSchema } from "@/lib/validation";
 import { badRequest, created, forbidden, ok, options } from "@/lib/http";
 import { createChargerOnChain, hashToU64 } from "@/lib/solana";
+import type { ConnectorType } from "@/generated/prisma";
+
+
+const CONNECTOR_DEFAULT_POWER_KW: Record<ConnectorType, number> = {
+  TYPE2: 22,
+  CCS2: 150,
+  CHADEMO: 50,
+  CCS1: 150,
+  NEMA14_50: 9,
+  SCHUKO: 3,
+};
 
 export async function OPTIONS() {
   return options();
@@ -24,8 +35,8 @@ export async function POST(req: NextRequest) {
   const { name, latitude, longitude, pricePerKwh, connector, available } =
     parse.data;
 
-  // 1) Create in DB
-  let charger = await prisma.charger.create({
+  // Create in DB
+  const charger = await prisma.charger.create({
     data: {
       hostId: host.userId,
       name,
@@ -37,17 +48,13 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  // 2) Compute & persist deterministic u64 chainId (from cuid)
+  // Compute chainId (from cuid)
   const chainId = hashToU64(charger.id);
-  charger = await prisma.charger.update({
-    where: { id: charger.id },
-    data: { chainId },
-  });
 
-  // 3) Call on-chain (non-fatal on failure)
+  // Call on-chain (non-fatal on failure)
   try {
     // Convert units
-    const powerKw = (charger as any).powerKw ?? 22; // if you have Charger.powerKw Float
+    const powerKw = CONNECTOR_DEFAULT_POWER_KW[connector]; // connector comes from validated payload
     const priceMicrousd = BigInt(Math.round(pricePerKwh * 1_000_000));
     const supplyType = 0; // MVP: 0 = renewable (or whatever you choose)
 
