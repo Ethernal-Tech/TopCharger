@@ -49,7 +49,6 @@ describe("topcharger-program", () => {
     const powerKw = 22;
     const supplyType = 0;
     const price = new BN(1000);
-    const location = "Test Location";
 
     const chargerIdBuf = chargerId.toArrayLike(Buffer, "le", 8);
     // Charger PDA uses the 32-byte host id hash
@@ -59,7 +58,7 @@ describe("topcharger-program", () => {
     );
 
     await program.methods
-      .createCharger(Array.from(hostUserHash), chargerId, powerKw, supplyType, price, location)
+      .createCharger(Array.from(hostUserHash), chargerId, powerKw, supplyType, price)
       .accounts({
         charger: chargerPda,
         wallet: host.publicKey,
