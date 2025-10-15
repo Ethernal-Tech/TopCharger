@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
 import { badRequest, forbidden, ok, options } from "@/lib/http";
 import { requireDriverContext } from "@/lib/authz";
+import { sendConfirmCharge } from "@/lib/solana";
 
 export async function OPTIONS() {
   return options();
@@ -15,14 +16,19 @@ export async function POST(
     const { userId } = await requireDriverContext(req);
     const { sessionId } = params;
 
-    const session = await prisma.chargingSession.findUnique({ where: { id: sessionId } });
+    const session = await prisma.chargingSession.findUnique({
+      where: { id: sessionId },
+    });
     if (!session) return badRequest("Session not found");
 
     if (session.driverId !== userId) return forbidden("Not your session");
     if (session.status !== "ACTIVE") return badRequest("Session is not ACTIVE");
 
     const now = new Date();
-    const hours = Math.max(0, (now.getTime() - session.startedAt.getTime()) / 3_600_000);
+    const hours = Math.max(
+      0,
+      (now.getTime() - session.startedAt.getTime()) / 3_600_000
+    );
 
     const energyKwh = session.powerKwSnapshot * hours;
     const costTotal = energyKwh * session.pricePerKwhSnapshot;
@@ -44,10 +50,35 @@ export async function POST(
       return s;
     });
 
-    return ok({ session: updated });
+    // Best-effort Solana confirm
+    if (session.solanaMatchPda) {
+      try {
+        const { signature } = await sendConfirmCharge({
+          matchPda: session.solanaMatchPda,
+          wasCorrect: true, // MVP: always true
+        });
+        const s2 = await prisma.chargingSession.update({
+          where: { id: sessionId },
+          data: { stopTxSig: signature },
+        });
+        return ok({ session: s2 });
+      } catch (e) {
+        console.error("confirm_charge failed:", e);
+      }
+    }
+
+    return ok({
+      session: updated,
+      chainSync: "confirm_failed_or_missing_match_pda",
+    });
   } catch (e: unknown) {
     const status = (e as { status?: number } | null)?.status;
-    const message = e instanceof Error ? e.message : typeof e === "string" ? e : "Internal Server Error";
+    const message =
+      e instanceof Error
+        ? e.message
+        : typeof e === "string"
+        ? e
+        : "Internal Server Error";
     if (status === 403) return new Response(message, { status: 403 });
     console.error("POST /api/sessions/:id/stop failed:", e);
     return new Response("Internal Server Error", { status: 500 });
