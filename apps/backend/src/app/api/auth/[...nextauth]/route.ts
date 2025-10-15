@@ -5,6 +5,10 @@ import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import { prisma } from "@/lib/db";
 
 export const authOptions: NextAuthOptions = {
+  pages: {
+    signIn: '/auth/signin', // Specify your custom sign-in page route here
+    signOut: '/auth/signout',
+  },
   adapter: PrismaAdapter(prisma),
   session: { strategy: "jwt" },
   providers: [

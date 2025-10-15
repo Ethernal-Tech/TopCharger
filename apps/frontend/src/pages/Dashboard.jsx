@@ -1,50 +1,38 @@
 import React, { useEffect } from "react";
 
-const BACKEND = "http://localhost:3000";
 const FRONTEND = "http://localhost:5173";
 
 export default function Dashboard() {
     useEffect(() => {
-        // Check if user is already logged in
-        const checkUser = async () => {
-            try {
-                const res = await fetch(`${BACKEND}/api/auth/me`, {
-                    method: "GET",
-                    credentials: "include",
-                });
-                if (!res.ok) return; // Not logged in, stay on Dashboard
-                const { user } = await res.json();
-                if (!user) return; // Not logged in
-                // Redirect based on role
-                if (user.role === "HOST") window.location.href = `${FRONTEND}/my-chargers`;
-                if (user.role === "DRIVER") window.location.href = `${FRONTEND}/chargers`;
-            } catch (err) {
-                console.error("Failed to check logged-in user:", err);
-            }
-        };
-        checkUser();
+        const token = sessionStorage.getItem("tc_token");
+        const role = sessionStorage.getItem("tc_role");
+
+        if (token && role) {
+            if (role === "HOST") window.location.href = `${FRONTEND}/my-chargers`;
+            if (role === "DRIVER") window.location.href = `${FRONTEND}/chargers`;
+        }
+        // If no token/role, stay on dashboard and show login buttons
     }, []);
 
     const handleGoogleLogin = () => {
+        const BACKEND = "http://localhost:3000";
         const callbackUrl = encodeURIComponent(`${FRONTEND}/auth/callback`);
-        window.location.href = `${BACKEND}/api/auth/signin/google?callbackUrl=${callbackUrl}&redirect=true`;
+        window.location.href = `${BACKEND}/api/auth/signin/google?callbackUrl=${callbackUrl}`;
     };
 
     const handleWalletLogin = () => {
-        if (window.solana && window.solana.isPhantom) {
+        if (window.solana?.isPhantom) {
             window.solana.connect()
-                .then((resp) => console.log("Connected wallet:", resp.publicKey.toString()))
-                .catch(err => console.error(err));
+                .then(resp => console.log("Connected wallet:", resp.publicKey.toString()))
+                .catch(console.error);
         } else {
             alert("Phantom Wallet not installed!");
         }
     };
 
     return (
-        <div
-            className="min-h-screen relative bg-cover bg-center bg-fixed overflow-hidden"
-            style={{ backgroundImage: "url('/bg-charger.png')" }}
-        >
+        <div className="min-h-screen relative bg-cover bg-center bg-fixed overflow-hidden"
+            style={{ backgroundImage: "url('/bg-charger.png')" }}>
             <div className="absolute inset-0 bg-white/30 backdrop-blur-sm" />
             <div className="absolute -top-32 -left-32 w-96 h-96 bg-green-400 rounded-full filter blur-3xl opacity-30 animate-pulse"></div>
             <div className="absolute -bottom-32 -right-32 w-96 h-96 bg-green-500 rounded-full filter blur-3xl opacity-30 animate-pulse"></div>

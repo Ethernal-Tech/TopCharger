@@ -5,47 +5,26 @@ const BACKEND = "http://localhost:3000";
 const FRONTEND = "http://localhost:5173";
 
 export default function Navbar() {
-    const [walletAddress, setWalletAddress] = useState(null);
-    const [googleToken, setGoogleToken] = useState(null);
-    const [role, setRole] = useState(null); // HOST or DRIVER
     const navigate = useNavigate();
 
-    useEffect(() => {
-        (async () => {
-            try {
-                // Check Google auth token
-                const tokenRes = await fetch(`${BACKEND}/api/auth/token`, {
-                    method: "GET",
-                    credentials: "include",
-                });
-                if (tokenRes.ok) {
-                    const { token } = await tokenRes.json();
-                    if (token) {
-                        setGoogleToken(token);
+    // Initialize state from sessionStorage
+    const [walletAddress, setWalletAddress] = useState(null);
+    const [googleToken, setGoogleToken] = useState(() => sessionStorage.getItem("tc_token"));
+    const [role, setRole] = useState(() => {
+        const userStr = sessionStorage.getItem("tc_user");
+        if (!userStr) return null;
+        try {
+            const user = JSON.parse(userStr);
+            return user.role || null;
+        } catch {
+            return null;
+        }
+    });
 
-                        // Fetch user info to get role
-                        const meRes = await fetch(`${BACKEND}/api/auth/me`, {
-                            method: "GET",
-                            credentials: "include",
-                        });
-                        if (meRes.ok) {
-                            const { user } = await meRes.json();
-                            setRole(user?.role || null);
-                        }
-                    } else {
-                        // No token, redirect to login/dashboard
-                        navigate("/");
-                    }
-                } else {
-                    // Token fetch failed, redirect
-                    navigate("/");
-                }
-            } catch (err) {
-                console.error("Failed to fetch auth token or user info", err);
-                navigate("/");
-            }
-        })();
-    }, [navigate]);
+    // Redirect to login if no token
+    useEffect(() => {
+        if (!googleToken) navigate("/");
+    }, [googleToken, navigate]);
 
     const handleWalletDisconnect = async () => {
         setWalletAddress(null);
@@ -54,6 +33,9 @@ export default function Navbar() {
 
     const handleGoogleLogout = async () => {
         sessionStorage.removeItem("tc_token");
+        sessionStorage.removeItem("tc_user");
+        setGoogleToken(null);
+        setRole(null);
         window.location.href = `${BACKEND}/api/auth/signout?callbackUrl=${FRONTEND}`;
     };
 
