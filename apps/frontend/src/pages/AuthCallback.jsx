@@ -41,14 +41,13 @@ export default function AuthCallback() {
                 sessionStorage.setItem("tc_user", JSON.stringify(user));
 
                 if (user.role === "UNSET") {
-                    // first time user: redirect to role selection page
                     window.location.href = `${FRONTEND}/select-role`;
                 } else if (user.role === "HOST") {
-                    // redirect to my chargers
                     window.location.href = `${FRONTEND}/my-chargers`;
+                } else if (user.role === "DRIVER") {
+                    window.location.href = `${FRONTEND}/chargers`;
                 } else {
-                    // redirect to dashboard
-                    window.location.href = FRONTEND;
+                    window.location.href = FRONTEND; // fallback
                 }
             } catch (err) {
                 console.error("AuthCallback error:", err);

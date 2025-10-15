@@ -1,4 +1,4 @@
-// src/pages/Chargers.jsx
+// apps/frontend/src/pages/Chargers.jsx
 import React, { useState, useEffect, useRef } from "react";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
@@ -25,7 +25,7 @@ const redIcon = new L.Icon({
     shadowSize: [41, 41],
 });
 
-// Fly map to selected position
+// Fly map helper
 function FlyTo({ position }) {
     const map = useMap();
     useEffect(() => {
@@ -42,7 +42,7 @@ export default function Chargers() {
     const [selectedPosition, setSelectedPosition] = useState(null);
     const popupRefs = useRef({});
 
-    // Check user role
+    // Check driver role
     useEffect(() => {
         const checkRole = async () => {
             try {
@@ -96,19 +96,35 @@ export default function Chargers() {
         fetchChargers();
     }, [roleChecked]);
 
+    const startSession = async (chargerId) => {
+        try {
+            const res = await fetch(`${BACKEND}/api/chargers/${chargerId}/start`, {
+                method: "POST",
+                credentials: "include",
+            });
+            if (!res.ok) throw new Error("Failed to start session");
+            alert("✅ Charging session started!");
+            // Refresh chargers availability
+            const updatedChargers = chargers.map((c) =>
+                c.id === chargerId ? { ...c, available: false } : c
+            );
+            setChargers(updatedChargers);
+        } catch (err) {
+            alert("❌ " + err.message);
+        }
+    };
+
     const mapCenter = chargers.length
         ? [Number(chargers[0].latitude), Number(chargers[0].longitude)]
         : [45.267136, 19.833549];
 
-    if (!roleChecked) return <p className="text-green-900 p-6">Checking access...</p>;
-    if (loading) return <p className="text-blue-900 p-6">Loading chargers...</p>;
-    if (error) return <p className="text-red-900 p-6">Error: {error}</p>;
+    if (!roleChecked) return <p className="p-6 text-green-900">Checking access...</p>;
+    if (loading) return <p className="p-6 text-blue-900">Loading chargers...</p>;
+    if (error) return <p className="p-6 text-red-900">Error: {error}</p>;
 
     const flyToCharger = (charger) => {
         const position = [Number(charger.latitude), Number(charger.longitude)];
         setSelectedPosition(position);
-
-        // Open popup
         const popup = popupRefs.current[charger.id || charger._id];
         if (popup) popup.openPopup();
     };
@@ -117,7 +133,6 @@ export default function Chargers() {
         <div className="min-h-screen bg-green-100 p-6 flex flex-col items-center">
             <h1 className="text-2xl font-bold mb-4">All Chargers</h1>
 
-            {/* Map */}
             <MapContainer center={mapCenter} zoom={13} style={{ height: "400px", width: "100%" }}>
                 <TileLayer
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -141,14 +156,13 @@ export default function Chargers() {
                             <br />
                             Price: {charger.pricePerKwh} €/kWh
                             <br />
-                            {charger.available ? "Available" : "Occupied"}
+                            Status: {charger.available ? "Available" : "Occupied"}
                         </Popup>
                     </Marker>
                 ))}
                 {selectedPosition && <FlyTo position={selectedPosition} />}
             </MapContainer>
 
-            {/* List */}
             <div className="mt-6 w-full max-w-xl">
                 <h2 className="text-xl font-semibold mb-2">Charger List</h2>
                 <ul className="bg-white p-4 rounded shadow space-y-2">
@@ -158,7 +172,6 @@ export default function Chargers() {
                             className="border-b pb-2 flex justify-between items-center"
                         >
                             <div>
-                                {/* Name clickable to fly to map */}
                                 <span
                                     className="font-bold text-blue-600 cursor-pointer hover:underline"
                                     onClick={() => flyToCharger(charger)}
@@ -168,23 +181,12 @@ export default function Chargers() {
                                 <br />
                                 {charger.address || "No address"}
                                 <br />
-                                Lat: {charger.latitude}, Lng: {charger.longitude}
-                                <br />
-                                <span
-                                    className={`text-sm font-medium ${charger.available ? "text-green-600" : "text-red-600"
-                                        }`}
-                                >
-                                    {charger.available ? "Available" : "Occupied"}
-                                </span>
+                                {charger.available ? "Available" : "Occupied"}
                             </div>
-
                             {charger.available && (
                                 <button
                                     className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700"
-                                    onClick={() => {
-                                        console.log("Starting charger:", charger.name);
-                                        // add start charging logic here
-                                    }}
+                                    onClick={() => startSession(charger.id)}
                                 >
                                     Start
                                 </button>
