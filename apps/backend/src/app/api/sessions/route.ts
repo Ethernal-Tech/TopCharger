@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
-import { ok, options, forbidden } from "@/lib/http";
+import { ok, options } from "@/lib/http";
 import { requireDriverContext, requireHostContext } from "@/lib/authz";
 
 export async function OPTIONS() { return options(); }

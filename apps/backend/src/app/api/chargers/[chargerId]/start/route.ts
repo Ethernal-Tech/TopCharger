@@ -3,7 +3,9 @@ import { prisma } from "@/lib/db";
 import { badRequest, forbidden, created, options } from "@/lib/http";
 import { requireDriverContext } from "@/lib/authz";
 
-export async function OPTIONS() { return options(); }
+export async function OPTIONS() {
+  return options();
+}
 
 export async function POST(
   req: NextRequest,
@@ -13,19 +15,24 @@ export async function POST(
     const { userId, driver } = await requireDriverContext(req);
     const { chargerId } = context.params;
 
-    const charger = await prisma.charger.findUnique({ where: { id: chargerId } });
+    const charger = await prisma.charger.findUnique({
+      where: { id: chargerId },
+    });
     if (!charger) return badRequest("Charger not found");
     if (!charger.available) return forbidden("Charger not available (in use)");
 
-    // enforce single-active-session per driver and charger (MVP: application level)
     const [driverActive, chargerActive] = await Promise.all([
-      prisma.chargingSession.findFirst({ where: { driverId: userId, status: "ACTIVE" } }),
-      prisma.chargingSession.findFirst({ where: { chargerId, status: "ACTIVE" } }),
+      prisma.chargingSession.findFirst({
+        where: { driverId: userId, status: "ACTIVE" },
+      }),
+      prisma.chargingSession.findFirst({
+        where: { chargerId, status: "ACTIVE" },
+      }),
     ]);
     if (driverActive) return forbidden("Driver already has an active session");
-    if (chargerActive) return forbidden("Charger already has an active session");
+    if (chargerActive)
+      return forbidden("Charger already has an active session");
 
-    // create session and mark charger unavailable
     const session = await prisma.$transaction(async (tx) => {
       const s = await tx.chargingSession.create({
         data: {
@@ -46,8 +53,15 @@ export async function POST(
     });
 
     return created({ session });
-  } catch (e: any) {
-    if (e?.status === 403) return new Response(e.message, { status: 403 });
+  } catch (e: unknown) {
+    const status = (e as { status?: number } | null)?.status;
+    const message =
+      e instanceof Error
+        ? e.message
+        : typeof e === "string"
+        ? e
+        : "Internal Server Error";
+    if (status === 403) return new Response(String(message), { status: 403 });
     console.error("POST /api/chargers/:id/start failed:", e);
     return new Response("Internal Server Error", { status: 500 });
   }

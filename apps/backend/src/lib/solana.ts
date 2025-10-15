@@ -239,6 +239,16 @@ export async function fetchUserAccountByUserId(userId: string) {
   return fetchUserAccountByPda(userPda.toBase58());
 }
 
+// Deterministic u64 from a string
+export function hashToU64(s: string): bigint {
+  const h = crypto.createHash("sha256").update(s, "utf8").digest(); // 32 bytes
+  // take first 8 bytes little-endian as u64
+  return BigInt.asUintN(
+    64,
+    BigInt("0x" + Buffer.from(h.subarray(0, 8)).reverse().toString("hex"))
+  );
+}
+
 // Derive charger PDA (seeds: "charger", host_user_hash, charger_id_u64_le)
 export function deriveChargerPda(
   hostUserHash32: Buffer,
