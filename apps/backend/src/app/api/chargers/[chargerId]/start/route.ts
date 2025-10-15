@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
 import { badRequest, forbidden, created, options } from "@/lib/http";
 import { requireDriverContext } from "@/lib/authz";
+import { sendReserveCharger } from "@/lib/solana";
 
 export async function OPTIONS() {
   return options();
@@ -9,11 +10,11 @@ export async function OPTIONS() {
 
 export async function POST(
   req: NextRequest,
-  context: { params: { chargerId: string } }
+  ctx: { params: Promise<{ chargerId: string }> } // params is a Promise
 ) {
   try {
     const { userId, driver } = await requireDriverContext(req);
-    const { chargerId } = context.params;
+     const { chargerId } = await ctx.params; // await before using params
 
     const charger = await prisma.charger.findUnique({
       where: { id: chargerId },
@@ -51,6 +52,30 @@ export async function POST(
       });
       return s;
     });
+
+    // Best-effort Solana reserve
+    if (charger.solanaChargerPda) {
+      try {
+        const { signature, matchPda } = await sendReserveCharger({
+          backendUserId: userId,
+          chargerPda: charger.solanaChargerPda,
+        });
+        await prisma.chargingSession.update({
+          where: { id: session.id },
+          data: { startTxSig: signature, solanaMatchPda: matchPda },
+        });
+        return created({
+          session: {
+            ...session,
+            startTxSig: signature,
+            solanaMatchPda: matchPda,
+          },
+        });
+      } catch (e) {
+        console.error("reserve_charger failed:", e);
+        // do not fail the session creation
+      }
+    }
 
     return created({ session });
   } catch (e: unknown) {
