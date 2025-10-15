@@ -11,17 +11,13 @@ function forbiddenError(msg: string): ForbiddenError {
 export async function requireDriverContext(req: NextRequest) {
   const userId = await requireUserId(req);
   const driver = await prisma.driverProfile.findUnique({ where: { userId } });
-  if (!driver) {
-    throw forbiddenError("Driver profile required");
-  }
+  if (!driver) throw forbiddenError("Driver profile required");
   return { userId, driver };
 }
 
 export async function requireHostContext(req: NextRequest) {
   const userId = await requireUserId(req);
   const host = await prisma.hostProfile.findUnique({ where: { userId } });
-  if (!host) {
-    throw forbiddenError("Host profile required");
-  }
+  if (!host) throw forbiddenError("Host profile required");
   return { userId, host };
 }
