@@ -13,7 +13,7 @@ import WalletProvider from "./context/WalletProvider.jsx";
 import AuthCallback from "./pages/AuthCallback";
 import CreateProfile from "./pages/CreateProfile.jsx";
 import SelectRole from "./pages/SelectRole.jsx";
-import DriverSessions from "./pages/DriverSessions.jsx";
+import Sessions from "./pages/Sessions.jsx";
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>
@@ -30,7 +30,7 @@ createRoot(document.getElementById("root")).render(
           <Route path="/create-profile" element={<CreateProfile />} />
           <Route path="/select-role" element={<SelectRole />} />
           <Route path="/auth/callback" element={<AuthCallback />} />
-          <Route path="/driver-sessions" element={<DriverSessions />} />
+          <Route path="/sessions" element={<Sessions />} />
         </Routes>
       </BrowserRouter>
     </WalletProvider>

@@ -34,6 +34,7 @@ export default function Navbar() {
     const handleGoogleLogout = async () => {
         sessionStorage.removeItem("tc_token");
         sessionStorage.removeItem("tc_user");
+        sessionStorage.removeItem("tc_role");
         setGoogleToken(null);
         setRole(null);
         window.location.href = `${BACKEND}/api/auth/signout?callbackUrl=${FRONTEND}`;
@@ -53,6 +54,11 @@ export default function Navbar() {
                     {googleToken && role === "DRIVER" && (
                         <Link to="/chargers" className="hover:text-green-600 transition">
                             Find Chargers
+                        </Link>
+                    )}
+                    {googleToken && (role === "HOST" || role === "DRIVER") && (
+                        <Link to="/sessions" className="hover:text-green-600 transition">
+                            Charger sessions
                         </Link>
                     )}
                     {googleToken && (role === "HOST" || role === "DRIVER") && (

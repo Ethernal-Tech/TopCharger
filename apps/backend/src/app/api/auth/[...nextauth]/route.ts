@@ -43,7 +43,7 @@ export const authOptions: NextAuthOptions = {
     },
     async redirect({ url, baseUrl }) {
       if (url.startsWith("http://localhost:5173")) return url;
-      return baseUrl;
+      return "http://localhost:5173/auth/callback";
     },
   },
   // jwt: { secret: process.env.NEXTAUTH_SECRET },

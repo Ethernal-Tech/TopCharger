@@ -96,6 +96,7 @@ export default function Chargers() {
         fetchChargers();
     }, [roleChecked]);
 
+    // Start session
     const startSession = async (chargerId) => {
         try {
             const res = await fetch(`${BACKEND}/api/chargers/${chargerId}/start`, {
@@ -104,11 +105,26 @@ export default function Chargers() {
             });
             if (!res.ok) throw new Error("Failed to start session");
             alert("✅ Charging session started!");
-            // Refresh chargers availability
-            const updatedChargers = chargers.map((c) =>
-                c.id === chargerId ? { ...c, available: false } : c
-            );
-            setChargers(updatedChargers);
+            setChargers(chargers.map(c =>
+                c.id === chargerId ? { ...c, available: false, activeSessionId: c.id } : c
+            ));
+        } catch (err) {
+            alert("❌ " + err.message);
+        }
+    };
+
+    // Stop session
+    const stopSession = async (sessionId) => {
+        try {
+            const res = await fetch(`${BACKEND}/api/sessions/${sessionId}/stop`, {
+                method: "POST",
+                credentials: "include",
+            });
+            if (!res.ok) throw new Error("Failed to stop session");
+            alert("🛑 Charging session stopped!");
+            setChargers(chargers.map(c =>
+                c.activeSessionId === sessionId ? { ...c, available: true, activeSessionId: null } : c
+            ));
         } catch (err) {
             alert("❌ " + err.message);
         }
@@ -131,8 +147,9 @@ export default function Chargers() {
 
     return (
         <div className="min-h-screen bg-green-100 p-6 flex flex-col items-center">
-            <h1 className="text-2xl font-bold mb-4">All Chargers</h1>
+            <h1 className="text-2xl font-bold mb-4">Nearby Chargers</h1>
 
+            {/* Map */}
             <MapContainer center={mapCenter} zoom={13} style={{ height: "400px", width: "100%" }}>
                 <TileLayer
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -163,37 +180,44 @@ export default function Chargers() {
                 {selectedPosition && <FlyTo position={selectedPosition} />}
             </MapContainer>
 
-            <div className="mt-6 w-full max-w-xl">
-                <h2 className="text-xl font-semibold mb-2">Charger List</h2>
-                <ul className="bg-white p-4 rounded shadow space-y-2">
-                    {chargers.map((charger) => (
-                        <li
-                            key={charger.id || charger._id}
-                            className="border-b pb-2 flex justify-between items-center"
-                        >
-                            <div>
-                                <span
-                                    className="font-bold text-blue-600 cursor-pointer hover:underline"
-                                    onClick={() => flyToCharger(charger)}
-                                >
-                                    {charger.name}
-                                </span>
-                                <br />
-                                {charger.address || "No address"}
-                                <br />
-                                {charger.available ? "Available" : "Occupied"}
-                            </div>
-                            {charger.available && (
-                                <button
-                                    className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700"
-                                    onClick={() => startSession(charger.id)}
-                                >
-                                    Start
-                                </button>
-                            )}
-                        </li>
-                    ))}
-                </ul>
+            {/* Charger list */}
+            <div className="mt-6 w-full max-w-xl flex flex-col gap-4">
+                {chargers.map((charger) => (
+                    <div
+                        key={charger.id || charger._id}
+                        className="bg-white p-4 rounded shadow flex justify-between items-center"
+                    >
+                        <div>
+                            <span
+                                className="font-bold text-blue-600 cursor-pointer hover:underline"
+                                onClick={() => flyToCharger(charger)}
+                            >
+                                {charger.name}
+                            </span>
+                            <br />
+                            {charger.address || "No address"}
+                            <br />
+                            {charger.available ? "Available" : "Occupied"}
+                        </div>
+
+                        {/* Start / Stop button */}
+                        {charger.available ? (
+                            <button
+                                className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700"
+                                onClick={() => startSession(charger.id)}
+                            >
+                                Start
+                            </button>
+                        ) : charger.activeSessionId ? (
+                            <button
+                                className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700"
+                                onClick={() => stopSession(charger.activeSessionId)}
+                            >
+                                Stop
+                            </button>
+                        ) : null}
+                    </div>
+                ))}
             </div>
         </div>
     );

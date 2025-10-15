@@ -1,21 +1,27 @@
-import React, { useEffect } from "react";
+// src/pages/Dashboard.jsx
+import React, { useEffect, useState } from "react";
 
 const FRONTEND = "http://localhost:5173";
+const BACKEND = "http://localhost:3000";
 
 export default function Dashboard() {
+    const [loading, setLoading] = useState(true);
+
     useEffect(() => {
         const token = sessionStorage.getItem("tc_token");
         const role = sessionStorage.getItem("tc_role");
 
         if (token && role) {
+            // Redirect based on role
             if (role === "HOST") window.location.href = `${FRONTEND}/my-chargers`;
-            if (role === "DRIVER") window.location.href = `${FRONTEND}/chargers`;
+            else if (role === "DRIVER") window.location.href = `${FRONTEND}/chargers`;
+            else setLoading(false); // unknown role, stay on dashboard
+        } else {
+            setLoading(false); // no session, show login UI
         }
-        // If no token/role, stay on dashboard and show login buttons
     }, []);
 
     const handleGoogleLogin = () => {
-        const BACKEND = "http://localhost:3000";
         const callbackUrl = encodeURIComponent(`${FRONTEND}/auth/callback`);
         window.location.href = `${BACKEND}/api/auth/signin/google?callbackUrl=${callbackUrl}`;
     };
@@ -30,9 +36,19 @@ export default function Dashboard() {
         }
     };
 
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center min-h-screen bg-green-100">
+                <div className="w-12 h-12 border-4 border-green-500 border-t-transparent rounded-full animate-spin"></div>
+            </div>
+        );
+    }
+
     return (
-        <div className="min-h-screen relative bg-cover bg-center bg-fixed overflow-hidden"
-            style={{ backgroundImage: "url('/bg-charger.png')" }}>
+        <div
+            className="min-h-screen relative bg-cover bg-center bg-fixed overflow-hidden"
+            style={{ backgroundImage: "url('/bg-charger.png')" }}
+        >
             <div className="absolute inset-0 bg-white/30 backdrop-blur-sm" />
             <div className="absolute -top-32 -left-32 w-96 h-96 bg-green-400 rounded-full filter blur-3xl opacity-30 animate-pulse"></div>
             <div className="absolute -bottom-32 -right-32 w-96 h-96 bg-green-500 rounded-full filter blur-3xl opacity-30 animate-pulse"></div>
