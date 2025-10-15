@@ -10,11 +10,11 @@ export async function OPTIONS() {
 
 export async function POST(
   req: NextRequest,
-  context: { params: { chargerId: string } }
+  ctx: { params: Promise<{ chargerId: string }> } // params is a Promise
 ) {
   try {
     const { userId, driver } = await requireDriverContext(req);
-    const { chargerId } = context.params;
+     const { chargerId } = await ctx.params; // await before using params
 
     const charger = await prisma.charger.findUnique({
       where: { id: chargerId },

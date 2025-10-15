@@ -10,11 +10,11 @@ export async function OPTIONS() {
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { sessionId: string } }
+  ctx: { params: Promise<{ sessionId: string }> }
 ) {
   try {
     const { userId } = await requireDriverContext(req);
-    const { sessionId } = params;
+    const { sessionId } = await ctx.params;
 
     const session = await prisma.chargingSession.findUnique({
       where: { id: sessionId },
