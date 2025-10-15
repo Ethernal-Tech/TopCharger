@@ -3,22 +3,29 @@ import { prisma } from "@/lib/db";
 import { requireUserId } from "@/lib/api-auth";
 import { createChargerSchema } from "@/lib/validation";
 import { badRequest, created, forbidden, ok, options } from "@/lib/http";
+import { createChargerOnChain, hashToU64 } from "@/lib/solana";
 
-export async function OPTIONS() { return options(); }
+export async function OPTIONS() {
+  return options();
+}
 
 export async function POST(req: NextRequest) {
   const userId = await requireUserId(req);
 
   // Must have a HostProfile
   const host = await prisma.hostProfile.findUnique({ where: { userId } });
-  if (!host) return forbidden("Create host profile first at /api/hosts/profile");
+  if (!host)
+    return forbidden("Create host profile first at /api/hosts/profile");
 
   const body = await req.json().catch(() => null);
   const parse = createChargerSchema.safeParse(body);
-  if (!parse.success) return badRequest(parse.error.issues[0]?.message || "Invalid payload");
-  const { name, latitude, longitude, pricePerKwh, connector, available } = parse.data;
+  if (!parse.success)
+    return badRequest(parse.error.issues[0]?.message || "Invalid payload");
+  const { name, latitude, longitude, pricePerKwh, connector, available } =
+    parse.data;
 
-  const charger = await prisma.charger.create({
+  // 1) Create in DB
+  let charger = await prisma.charger.create({
     data: {
       hostId: host.userId,
       name,
@@ -30,7 +37,49 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  return created({ charger });
+  // 2) Compute & persist deterministic u64 chainId (from cuid)
+  const chainId = hashToU64(charger.id);
+  charger = await prisma.charger.update({
+    where: { id: charger.id },
+    data: { chainId },
+  });
+
+  // 3) Call on-chain (non-fatal on failure)
+  try {
+    // Convert units
+    const powerKw = (charger as any).powerKw ?? 22; // if you have Charger.powerKw Float
+    const priceMicrousd = BigInt(Math.round(pricePerKwh * 1_000_000));
+    const supplyType = 0; // MVP: 0 = renewable (or whatever you choose)
+
+    const { signature, chargerPda } = await createChargerOnChain({
+      backendUserId: userId,
+      chargerIdU64: chainId,
+      powerKw: Math.round(powerKw),
+      supplyType,
+      priceMicrousdPerKwh: priceMicrousd,
+    });
+
+    await prisma.charger.update({
+      where: { id: charger.id },
+      data: {
+        solanaChargerPda: chargerPda,
+        solanaCreateTx: signature,
+      },
+    });
+
+    // include on-chain fields in response
+    return created({
+      charger: {
+        ...charger,
+        solanaChargerPda: chargerPda,
+        solanaCreateTx: signature,
+      },
+    });
+  } catch (e) {
+    console.error("createChargerOnChain failed:", e);
+    // Non-fatal for MVP — return web2 charger; front-end can retry a "sync to chain" later
+    return created({ charger, chainSync: "failed" });
+  }
 }
 
 // list your chargers to verify creation
@@ -41,7 +90,10 @@ export async function GET(req: NextRequest) {
 
   const url = new URL(req.url);
   const page = Number(url.searchParams.get("page") ?? "1");
-  const pageSize = Math.min(Number(url.searchParams.get("pageSize") ?? "20"), 100);
+  const pageSize = Math.min(
+    Number(url.searchParams.get("pageSize") ?? "20"),
+    100
+  );
 
   const [items, total] = await Promise.all([
     prisma.charger.findMany({
