@@ -106,11 +106,14 @@ describe("topcharger-program", () => {
     // 4) Confirm charge completed
     await program.methods
       .confirmCharge(true)
-      .accounts({ matchAccount: matchPda } as any)
+      .accounts({ matchAccount: matchPda, charger: chargerPda } as any)
       .rpc();
 
     const matchAfterConfirm = await program.account.matchAccount.fetch(matchPda);
-    expect(matchAfterConfirm.status).to.equal(1);
-    expect(matchAfterConfirm.confirmedCorrect).to.equal(true);
+  expect(matchAfterConfirm.status).to.equal(1);
+  expect(matchAfterConfirm.confirmedCorrect).to.equal(true);
+  // Charger should be freed
+  const chargerAfterConfirm = await program.account.chargerAccount.fetch(chargerPda);
+  expect(chargerAfterConfirm.status).to.equal(0);
   });
 });

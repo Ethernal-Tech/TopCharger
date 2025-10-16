@@ -62,8 +62,12 @@ pub mod topcharger_program {
     /// Driver confirms charging complete
     pub fn confirm_charge(ctx: Context<ConfirmCharge>, was_correct: bool) -> Result<()> {
         let match_acc = &mut ctx.accounts.match_account;
+        let charger = &mut ctx.accounts.charger;
+        // Mark match as completed
         match_acc.status = 1; // completed
         match_acc.confirmed_correct = was_correct;
+        // Free the charger back to available
+        charger.status = 0; // available
         Ok(())
     }
 }
@@ -133,8 +137,10 @@ pub struct ReserveCharger<'info> {
 
 #[derive(Accounts)]
 pub struct ConfirmCharge<'info> {
-    #[account(mut)]
+    #[account(mut, has_one = charger)]
     pub match_account: Account<'info, MatchAccount>,
+    #[account(mut)]
+    pub charger: Account<'info, ChargerAccount>,
 }
 
 /// On-chain user record (host or driver)
