@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import FullScreenLoader from "../components/FullScreenLoader.jsx";
 
 const BACKEND = "http://localhost:3000";
 
@@ -65,16 +66,7 @@ export default function AuthCallback() {
     }, [navigate]);
 
     // Show spinner while fetching
-    if (loading) {
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-green-100">
-                <div className="flex flex-col items-center gap-4">
-                    <div className="w-16 h-16 border-4 border-green-500 border-t-transparent rounded-full animate-spin"></div>
-                    <p className="text-green-900 font-semibold">Signing in...</p>
-                </div>
-            </div>
-        );
-    }
+    if (loading) return <FullScreenLoader message="Signing in..." />;
 
     // Optionally show error if needed
     if (error) {

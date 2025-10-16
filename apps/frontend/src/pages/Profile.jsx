@@ -1,5 +1,6 @@
 // apps/frontend/src/pages/Profile.jsx
 import { useState, useEffect } from "react";
+import FullScreenLoader from "../components/FullScreenLoader.jsx";
 
 const BACKEND = "http://localhost:3000";
 
@@ -44,7 +45,7 @@ export default function Profile() {
         fetchProfile();
     }, []);
 
-    if (loading) return <div className="text-center mt-10">Loading...</div>;
+    if (loading) return <FullScreenLoader message="Loading..." />;
     if (error) return <div className="text-center text-red-500 mt-10">{error}</div>;
 
     return (

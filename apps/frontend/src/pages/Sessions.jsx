@@ -1,5 +1,6 @@
 // src/pages/Sessions.jsx
 import React, { useState, useEffect } from "react";
+import FullScreenLoader from "../components/FullScreenLoader.jsx";
 
 const BACKEND = "http://localhost:3000";
 
@@ -36,7 +37,7 @@ export default function Sessions() {
         fetchSessions();
     }, [role]);
 
-    if (loading) return <p className="text-green-900 p-6">Loading sessions...</p>;
+    if (loading) return <FullScreenLoader message="Loading sessions..." />;
     if (error) return <p className="text-red-600 p-6">Error: {error}</p>;
     if (sessions.length === 0) return <p className="text-green-900 p-6">No sessions found.</p>;
 

@@ -9,8 +9,8 @@ export default function Navbar() {
 
     // Initialize state from sessionStorage
     const [walletAddress, setWalletAddress] = useState(null);
-    const [googleToken, setGoogleToken] = useState(() => sessionStorage.getItem("tc_token"));
-    const [role, setRole] = useState(() => {
+    const [googleToken] = useState(() => sessionStorage.getItem("tc_token"));
+    const [role] = useState(() => {
         const userStr = sessionStorage.getItem("tc_user");
         if (!userStr) return null;
         try {
@@ -32,12 +32,7 @@ export default function Navbar() {
     };
 
     const handleGoogleLogout = async () => {
-        sessionStorage.removeItem("tc_token");
-        sessionStorage.removeItem("tc_user");
-        sessionStorage.removeItem("tc_role");
-        setGoogleToken(null);
-        setRole(null);
-        window.location.href = `${BACKEND}/api/auth/signout?callbackUrl=${FRONTEND}`;
+        navigate("/logout");
     };
 
     return (
@@ -81,7 +76,7 @@ export default function Navbar() {
                 {googleToken && !walletAddress && (
                     <button
                         onClick={handleGoogleLogout}
-                        className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+                        className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
                     >
                         Logout Google
                     </button>

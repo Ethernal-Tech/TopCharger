@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import FullScreenLoader from "../components/FullScreenLoader.jsx";
 
 const BACKEND = "http://localhost:3000";
 
@@ -160,8 +161,8 @@ export default function Chargers() {
         ? [Number(chargers[0].latitude), Number(chargers[0].longitude)]
         : [45.267136, 19.833549];
 
-    if (!roleChecked) return <p className="p-6 text-green-900">Checking access...</p>;
-    if (loading) return <p className="p-6 text-blue-900">Loading chargers...</p>;
+    if (!roleChecked) return <FullScreenLoader message="Checking access..." />;
+    if (loading) return <FullScreenLoader message="Loading chargers..." />;
     if (error) return <p className="p-6 text-red-900">Error: {error}</p>;
 
     const flyToCharger = (charger) => {

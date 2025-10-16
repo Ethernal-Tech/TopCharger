@@ -1,4 +1,5 @@
 // main.jsx
+import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext.jsx";
@@ -14,6 +15,8 @@ import CreateProfile from "./pages/CreateProfile.jsx";
 import SelectRole from "./pages/SelectRole.jsx";
 import AuthCallback from "./pages/AuthCallback.jsx";
 import Sessions from "./pages/Sessions.jsx";
+import Logout from "./pages/Logout.jsx";
+
 
 // Wrapper to delay rendering until auth is confirmed
 function AppRoutes() {
@@ -44,15 +47,19 @@ function AppRoutes() {
         <Route path="/select-role" element={<SelectRole />} />
         <Route path="/auth/callback" element={<AuthCallback />} />
         <Route path="/sessions" element={<Sessions />} />
+        <Route path="/logout" element={<Logout />} />
       </Routes>
     </>
   );
 }
 
 createRoot(document.getElementById("root")).render(
-  <BrowserRouter>
-    <AuthProvider>
-      <AppRoutes />
-    </AuthProvider>
-  </BrowserRouter>
+  <StrictMode>
+    <BrowserRouter>
+      <AuthProvider>
+        <AppRoutes />
+      </AuthProvider>
+    </BrowserRouter>
+  </StrictMode>
+
 );

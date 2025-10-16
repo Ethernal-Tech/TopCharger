@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
+import FullScreenLoader from "../components/FullScreenLoader.jsx";
 
 const BACKEND = "http://localhost:3000";
 
@@ -39,7 +40,6 @@ export default function MyChargers() {
                         Array.isArray(data.items) ? data.items :
                             [];
 
-            // Ensure latitude/longitude and pricePerKwh are numbers
             const sanitized = parsed.map((c) => ({
                 ...c,
                 latitude: Number(c.latitude),
@@ -105,6 +105,28 @@ export default function MyChargers() {
             ? [chargers[0].latitude, chargers[0].longitude]
             : [45.267136, 19.833549];
 
+    // ✅ Show full-screen loader like login (blue style)
+    if (loading) {
+        return <FullScreenLoader message="Fetching your chargers..." />;
+    }
+
+    // ❌ Error fallback
+    if (error) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-green-100">
+                <div className="bg-white p-6 rounded-2xl shadow-md text-center">
+                    <p className="text-red-600 font-semibold mb-4">Error: {error}</p>
+                    <button
+                        onClick={fetchChargers}
+                        className="bg-green-700 text-white py-2 px-4 rounded"
+                    >
+                        Retry
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="min-h-screen bg-green-100 p-6 flex flex-col items-center">
             <div className="bg-white p-6 rounded-2xl shadow-md w-full max-w-5xl mb-8">
@@ -164,37 +186,31 @@ export default function MyChargers() {
                 </div>
 
                 {/* Table */}
-                {loading ? (
-                    <p>Loading chargers...</p>
-                ) : error ? (
-                    <p className="text-red-600">Error: {error}</p>
-                ) : (
-                    <table className="w-full text-left border-collapse">
-                        <thead className="bg-green-200">
-                            <tr>
-                                <th className="p-3">Name</th>
-                                <th className="p-3">Price</th>
-                                <th className="p-3">Connector</th>
-                                <th className="p-3">Status</th>
+                <table className="w-full text-left border-collapse">
+                    <thead className="bg-green-200">
+                        <tr>
+                            <th className="p-3">Name</th>
+                            <th className="p-3">Price</th>
+                            <th className="p-3">Connector</th>
+                            <th className="p-3">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {chargers.map((c) => (
+                            <tr key={c.id} className="border-b hover:bg-green-50">
+                                <td
+                                    className="p-3 font-semibold text-green-900 cursor-pointer hover:underline"
+                                    onClick={() => flyToCharger(c.latitude, c.longitude, c.id)}
+                                >
+                                    {c.name}
+                                </td>
+                                <td className="p-3">${c.pricePerKwh}</td>
+                                <td className="p-3">{c.connector}</td>
+                                <td className="p-3">{c.available ? "✅ Open" : "❌ Closed"}</td>
                             </tr>
-                        </thead>
-                        <tbody>
-                            {chargers.map((c) => (
-                                <tr key={c.id} className="border-b hover:bg-green-50">
-                                    <td
-                                        className="p-3 font-semibold text-green-900 cursor-pointer hover:underline"
-                                        onClick={() => flyToCharger(c.latitude, c.longitude, c.id)}
-                                    >
-                                        {c.name}
-                                    </td>
-                                    <td className="p-3">${c.pricePerKwh}</td>
-                                    <td className="p-3">{c.connector}</td>
-                                    <td className="p-3">{c.available ? "✅ Open" : "❌ Closed"}</td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                )}
+                        ))}
+                    </tbody>
+                </table>
             </div>
         </div>
     );
