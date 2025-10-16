@@ -76,14 +76,16 @@ describe("topcharger-program", () => {
     expect(chargerAccount.price.toNumber()).to.equal(price.toNumber());
     expect(chargerAccount.status).to.equal(0);
 
-    // 3) Reserve the charger (driver)
+    // 3) Reserve the charger (driver) using 32-byte match_id for PDA
+    const matchIdBuf = Buffer.alloc(32, 0);
+    matchIdBuf[0] = 42; // deterministic test id
     const [matchPda] = await anchor.web3.PublicKey.findProgramAddress(
-      [Buffer.from("match"), chargerPda.toBuffer()],
+      [Buffer.from("match"), matchIdBuf],
       program.programId
     );
 
     await program.methods
-      .reserveCharger(Array.from(driverUserHash))
+      .reserveCharger(Array.from(matchIdBuf), Array.from(driverUserHash))
       .accounts({
         charger: chargerPda,
         matchAccount: matchPda,
@@ -95,10 +97,11 @@ describe("topcharger-program", () => {
     const chargerAfterReserve = await program.account.chargerAccount.fetch(chargerPda);
     expect(chargerAfterReserve.status).to.equal(1);
 
-  const matchAccount = await program.account.matchAccount.fetch(matchPda);
-  expect(Buffer.from(matchAccount.driverUserHash)).to.deep.equal(driverUserHash);
-  expect(matchAccount.charger.toBase58()).to.equal(chargerPda.toBase58());
-  expect(matchAccount.status).to.equal(0);
+    const matchAccount = await program.account.matchAccount.fetch(matchPda);
+    expect(Buffer.from(matchAccount.matchId)).to.deep.equal(matchIdBuf);
+    expect(Buffer.from(matchAccount.driverUserHash)).to.deep.equal(driverUserHash);
+    expect(matchAccount.charger.toBase58()).to.equal(chargerPda.toBase58());
+    expect(matchAccount.status).to.equal(0);
 
     // 4) Confirm charge completed
     await program.methods
