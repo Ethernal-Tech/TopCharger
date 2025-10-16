@@ -8,11 +8,10 @@ const FRONTEND = "http://localhost:5173"; // your frontend URL
 export default function SignInPage() {
     useEffect(() => {
         (async () => {
-            const providers = await getProviders();
-            if (providers?.google?.id) {
-                // Provide callbackUrl to redirect after login
-                signIn(providers.google.id, { callbackUrl: `${FRONTEND}/auth/callback` });
-            }
+
+            // Provide callbackUrl to redirect after login
+            signIn("google");
+
         })();
     }, []);
 

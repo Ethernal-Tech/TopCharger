@@ -1,24 +1,27 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 
 const BACKEND = "http://localhost:3000";
-const FRONTEND = "http://localhost:5173";
 
 export default function AuthCallback() {
-    const [loading, setLoading] = useState(true);  // Add loading state
+    const [loading, setLoading] = useState(true); // Loading spinner
+    const [error, setError] = useState(null);     // Optional error
+    const navigate = useNavigate();
+    const ranRef = useRef(false);                 // Prevent double effect
 
     useEffect(() => {
-        (async () => {
+        if (ranRef.current) return;
+        ranRef.current = true;
+
+        const fetchUser = async () => {
             try {
-                // Fetch JWT from backend
+                // Fetch token from backend
                 const tokenRes = await fetch(`${BACKEND}/api/auth/token`, {
                     method: "GET",
                     credentials: "include",
                 });
 
-                if (!tokenRes.ok) {
-                    window.location.href = FRONTEND;
-                    return;
-                }
+                if (!tokenRes.ok) throw new Error("Failed to get token");
 
                 const { token } = await tokenRes.json();
                 sessionStorage.setItem("tc_token", token);
@@ -29,39 +32,39 @@ export default function AuthCallback() {
                     credentials: "include",
                 });
 
-                if (!meRes.ok) {
-                    window.location.href = FRONTEND;
-                    return;
-                }
+                if (!meRes.ok) throw new Error("Failed to get user info");
 
                 const { user } = await meRes.json();
                 sessionStorage.setItem("tc_user", JSON.stringify(user));
                 sessionStorage.setItem("tc_role", user.role);
 
-                // Redirect based on role
+                // Navigate based on role
                 switch (user.role) {
                     case "UNSET":
-                        window.location.href = `${FRONTEND}/select-role`;
+                        navigate("/select-role", { replace: true });
                         break;
                     case "HOST":
-                        window.location.href = `${FRONTEND}/my-chargers`;
+                        navigate("/my-chargers", { replace: true });
                         break;
                     case "DRIVER":
-                        window.location.href = `${FRONTEND}/chargers`;
+                        navigate("/chargers", { replace: true });
                         break;
                     default:
-                        window.location.href = FRONTEND;
+                        navigate("/", { replace: true });
                 }
             } catch (err) {
                 console.error("Auth callback error:", err);
-                window.location.href = FRONTEND;
+                setError(err.message || "Unknown error");
+                navigate("/", { replace: true });
             } finally {
-                setLoading(false);  // Set loading to false after logic completes
+                setLoading(false);
             }
-        })();
-    }, []);
+        };
 
-    // If loading is true, show the loading spinner
+        fetchUser();
+    }, [navigate]);
+
+    // Show spinner while fetching
     if (loading) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-green-100">
@@ -73,6 +76,15 @@ export default function AuthCallback() {
         );
     }
 
-    // This will never be rendered since the redirect happens
+    // Optionally show error if needed
+    if (error) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-red-100">
+                <p className="text-red-900 font-semibold">{error}</p>
+            </div>
+        );
+    }
+
+    // Never render anything else; redirect happens automatically
     return null;
 }
