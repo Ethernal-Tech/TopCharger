@@ -64,7 +64,7 @@ export default function Chargers() {
         checkRole();
     }, []);
 
-    // Fetch chargers
+    // Fetch chargers & restore sessions from localStorage
     useEffect(() => {
         if (!roleChecked) return;
 
@@ -84,7 +84,17 @@ export default function Chargers() {
                         : Array.isArray(data.chargers)
                             ? data.chargers
                             : [];
-                setChargers(parsed);
+
+                // ✅ Restore sessions from localStorage
+                const saved = JSON.parse(localStorage.getItem("activeSessions") || "{}");
+                const restored = parsed.map(c => {
+                    if (saved[c.id]) {
+                        return { ...c, available: false, activeSessionId: saved[c.id] };
+                    }
+                    return c;
+                });
+
+                setChargers(restored);
             } catch (err) {
                 console.error("Fetching chargers failed:", err);
                 setError(err.message || "Unknown error");
@@ -96,31 +106,47 @@ export default function Chargers() {
         fetchChargers();
     }, [roleChecked]);
 
-    // Start session
+    // ✅ Start session
     const startSession = async (chargerId) => {
         try {
             const res = await fetch(`${BACKEND}/api/chargers/${chargerId}/start`, {
                 method: "POST",
                 credentials: "include",
             });
-            if (!res.ok) throw new Error("Failed to start session");
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.message || "Failed to start session");
+
+            const sessionId = data.session?.id;
+            if (!sessionId) throw new Error("Backend did not return session ID");
+
+            // ✅ Save to localStorage
+            const activeSessions = JSON.parse(localStorage.getItem("activeSessions") || "{}");
+            activeSessions[chargerId] = sessionId;
+            localStorage.setItem("activeSessions", JSON.stringify(activeSessions));
+
             alert("✅ Charging session started!");
             setChargers(chargers.map(c =>
-                c.id === chargerId ? { ...c, available: false, activeSessionId: c.id } : c
+                c.id === chargerId ? { ...c, available: false, activeSessionId: sessionId } : c
             ));
         } catch (err) {
             alert("❌ " + err.message);
         }
     };
 
-    // Stop session
-    const stopSession = async (sessionId) => {
+    // ✅ Stop session
+    const stopSession = async (sessionId, chargerId) => {
         try {
             const res = await fetch(`${BACKEND}/api/sessions/${sessionId}/stop`, {
                 method: "POST",
                 credentials: "include",
             });
             if (!res.ok) throw new Error("Failed to stop session");
+
+            // ✅ Remove from localStorage
+            const activeSessions = JSON.parse(localStorage.getItem("activeSessions") || "{}");
+            delete activeSessions[chargerId];
+            localStorage.setItem("activeSessions", JSON.stringify(activeSessions));
+
             alert("🛑 Charging session stopped!");
             setChargers(chargers.map(c =>
                 c.activeSessionId === sessionId ? { ...c, available: true, activeSessionId: null } : c
@@ -149,7 +175,6 @@ export default function Chargers() {
         <div className="min-h-screen bg-green-100 p-6 flex flex-col items-center">
             <h1 className="text-2xl font-bold mb-4">Nearby Chargers</h1>
 
-            {/* Map */}
             <MapContainer center={mapCenter} zoom={13} style={{ height: "400px", width: "100%" }}>
                 <TileLayer
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -180,7 +205,6 @@ export default function Chargers() {
                 {selectedPosition && <FlyTo position={selectedPosition} />}
             </MapContainer>
 
-            {/* Charger list */}
             <div className="mt-6 w-full max-w-xl flex flex-col gap-4">
                 {chargers.map((charger) => (
                     <div
@@ -200,7 +224,6 @@ export default function Chargers() {
                             {charger.available ? "Available" : "Occupied"}
                         </div>
 
-                        {/* Start / Stop button */}
                         {charger.available ? (
                             <button
                                 className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700"
@@ -211,7 +234,7 @@ export default function Chargers() {
                         ) : charger.activeSessionId ? (
                             <button
                                 className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700"
-                                onClick={() => stopSession(charger.activeSessionId)}
+                                onClick={() => stopSession(charger.activeSessionId, charger.id)}
                             >
                                 Stop
                             </button>
