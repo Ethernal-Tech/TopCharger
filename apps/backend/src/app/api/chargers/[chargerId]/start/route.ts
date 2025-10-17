@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
 import { badRequest, forbidden, created, options } from "@/lib/http";
 import { requireDriverContext } from "@/lib/authz";
-import { sendReserveCharger } from "@/lib/solana";
+import { sendReserveCharger, hash32 } from "@/lib/solana";
 
 export async function OPTIONS() {
   return options();
@@ -56,10 +56,13 @@ export async function POST(
     // Best-effort Solana reserve
     if (charger.solanaChargerPda) {
       try {
-        const { signature, matchPda } = await sendReserveCharger({
-          backendUserId: userId,
-          chargerPda: charger.solanaChargerPda,
-        });
+        // Build 32-byte match_id from our backend session id
+      const matchId32 = hash32(session.id);
+      const { signature, matchPda } = await sendReserveCharger({
+      backendUserId: userId,
+      chargerPda: charger.solanaChargerPda,
+      matchId32,
+    });
         await prisma.chargingSession.update({
           where: { id: session.id },
           data: { startTxSig: signature, solanaMatchPda: matchPda },
