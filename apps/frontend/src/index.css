@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 body {
-    background-image: url('/cars_chargers.png');
+    background-image: url('/top_charger.png');
     background-size: cover;
     background-position: center;
     background-attachment: fixed;
