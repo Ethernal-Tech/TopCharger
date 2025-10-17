@@ -76,7 +76,7 @@ export default function Navbar() {
                 {googleToken && !walletAddress && (
                     <button
                         onClick={handleGoogleLogout}
-                        className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
+                        className="bg-green-700 text-white px-4 py-2 rounded hover:bg-green-800"
                     >
                         Logout Google
                     </button>

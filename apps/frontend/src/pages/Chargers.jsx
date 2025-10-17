@@ -210,7 +210,7 @@ export default function Chargers() {
     if (error) return <p className="p-6 text-red-900">Error: {error}</p>;
 
     return (
-        <div className="min-h-screen bg-green-100 flex flex-col md:flex-row">
+        <div className="min-h-screen bg-default-background flex flex-col md:flex-row">
             {/* Map */}
             <div className="md:w-2/3 h-[80vh] md:h-screen rounded overflow-hidden shadow">
                 <MapContainer center={mapCenter} zoom={13} style={{ height: "100%", width: "100%" }}>

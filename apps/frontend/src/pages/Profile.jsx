@@ -49,19 +49,19 @@ export default function Profile() {
     if (error) return <div className="text-center text-red-500 mt-10">{error}</div>;
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-green-100">
-            <div className="bg-white p-8 rounded-2xl shadow-md w-full max-w-md text-center">
+        <div className="min-h-screen flex items-center justify-center">
+            <div className="backdrop-blur-sm bg-white/90 p-10 rounded-2xl shadow-2xl w-full max-w-md">
                 <div className="flex flex-col items-center mb-6">
                     <div className="bg-green-700 text-white p-4 rounded-full text-4xl mb-3 shadow">
                         👤
                     </div>
-                    <h1 className="text-2xl font-bold text-green-900">
+                    <h1 className="text-3xl font-bold text-green-900">
                         {profile.role === "HOST" ? "Host Profile" : "Driver Profile"}
                     </h1>
                 </div>
 
-                {/* Dynamic Profile Info */}
-                <div className="text-left space-y-4">
+                {/* Profile Details */}
+                <div className="space-y-4">
                     {profile.role === "HOST" ? (
                         <>
                             <ProfileField label="Business Name" value={profile.host?.businessName} />

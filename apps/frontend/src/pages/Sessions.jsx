@@ -42,8 +42,10 @@ export default function Sessions() {
     if (sessions.length === 0) return <p className="text-green-900 p-6">No sessions found.</p>;
 
     return (
-        <div className="min-h-screen bg-green-100 p-6 flex flex-col items-center">
-            <h1 className="text-2xl font-bold mb-6">🚗 {role === "host" ? "Hosted" : "Charging"} Sessions</h1>
+        <div className="min-h-screen bg-default-background p-6 flex flex-col items-center">
+            <h1 className="text-2xl font-bold mb-6 text-white">
+                🚗 {role === "host" ? "Hosted" : "Charging"} Sessions
+            </h1>
             <div className="w-full max-w-7xl bg-white rounded shadow p-4 overflow-x-auto">
                 <table className="w-full min-w-[900px] text-left border-collapse">
                     <thead className="bg-green-200">

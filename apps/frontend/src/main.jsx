@@ -22,9 +22,13 @@ import Logout from "./pages/Logout.jsx";
 function AppRoutes() {
   const { loading } = useAuth();
 
+
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-green-100">
+      <div
+        className="min-h-screen flex items-center justify-center bg-cover bg-center"
+        style={{ backgroundImage: "url('/bg-charger.png')" }} // your default background
+      >
         <div className="flex flex-col items-center gap-4">
           <div className="w-16 h-16 border-4 border-green-500 border-t-transparent rounded-full animate-spin"></div>
           <p className="text-green-900 font-semibold">Checking authentication...</p>
