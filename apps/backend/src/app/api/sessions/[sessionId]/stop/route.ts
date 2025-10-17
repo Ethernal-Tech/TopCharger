@@ -53,17 +53,27 @@ export async function POST(
     // Best-effort Solana confirm
     if (session.solanaMatchPda) {
       try {
-        const { signature } = await sendConfirmCharge({
-          matchPda: session.solanaMatchPda,
-          wasCorrect: true, // MVP: always true
-        });
-        const s2 = await prisma.chargingSession.update({
-          where: { id: sessionId },
-          data: { stopTxSig: signature },
-        });
-        return ok({ session: s2 });
+        if (updated.solanaMatchPda) {
+          const charger = await prisma.charger.findUnique({
+            where: { id: updated.chargerId },
+            select: { solanaChargerPda: true },
+          });
+          if (charger?.solanaChargerPda) {
+            const { signature } = await sendConfirmCharge({
+              matchPda: updated.solanaMatchPda,
+              chargerPda: charger.solanaChargerPda,
+              wasCorrect: true, // MVP
+            });
+
+            await prisma.chargingSession.update({
+              where: { id: updated.id },
+              data: { stopTxSig: signature },
+            });
+          }
+        }
       } catch (e) {
         console.error("confirm_charge failed:", e);
+        // non-fatal for MVP
       }
     }
 
