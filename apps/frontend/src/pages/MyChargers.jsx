@@ -4,7 +4,7 @@ import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import FullScreenLoader from "../components/FullScreenLoader.jsx";
 
-const BACKEND = "http://localhost:3000";
+const BACKEND = import.meta.env.VITE_BACKEND_URL;
 
 export default function MyChargers() {
     const [chargers, setChargers] = useState([]);

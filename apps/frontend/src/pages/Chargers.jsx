@@ -5,7 +5,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import FullScreenLoader from "../components/FullScreenLoader.jsx";
 
-const BACKEND = "http://localhost:3000";
+const BACKEND = import.meta.env.VITE_BACKEND_URL;
 
 // Marker icons
 const greenIcon = new L.Icon({
@@ -33,6 +33,46 @@ function FlyTo({ position }) {
         if (position) map.flyTo(position, 16);
     }, [position, map]);
     return null;
+}
+
+// Charger card component
+function ChargerCard({ charger, onStart, onStop, onFlyTo }) {
+    return (
+        <div className="bg-white p-4 rounded shadow flex justify-between items-center">
+            <div>
+                <span
+                    className="font-bold text-blue-600 cursor-pointer hover:underline"
+                    onClick={() => onFlyTo(charger)}
+                >
+                    {charger.name}
+                </span>
+                <br />
+                {charger.address || "No address"}
+                <br />
+                Power: {charger.powerKw} kW
+                <br />
+                Price: {charger.pricePerKwh} €/kWh
+                <br />
+                Status: {charger.available ? "Available" : "Occupied"}
+            </div>
+
+            {charger.available ? (
+                <button
+                    className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700"
+                    onClick={() => onStart(charger.id)}
+                >
+                    Start
+                </button>
+            ) : charger.activeSessionId ? (
+                <button
+                    className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700"
+                    onClick={() => onStop(charger.activeSessionId, charger.id)}
+                >
+                    Stop
+                </button>
+            ) : null}
+        </div>
+    );
 }
 
 export default function Chargers() {
@@ -86,7 +126,6 @@ export default function Chargers() {
                             ? data.chargers
                             : [];
 
-                // ✅ Restore sessions from localStorage
                 const saved = JSON.parse(localStorage.getItem("activeSessions") || "{}");
                 const restored = parsed.map(c => {
                     if (saved[c.id]) {
@@ -107,7 +146,7 @@ export default function Chargers() {
         fetchChargers();
     }, [roleChecked]);
 
-    // ✅ Start session
+    // Start session
     const startSession = async (chargerId) => {
         try {
             const res = await fetch(`${BACKEND}/api/chargers/${chargerId}/start`, {
@@ -120,7 +159,6 @@ export default function Chargers() {
             const sessionId = data.session?.id;
             if (!sessionId) throw new Error("Backend did not return session ID");
 
-            // ✅ Save to localStorage
             const activeSessions = JSON.parse(localStorage.getItem("activeSessions") || "{}");
             activeSessions[chargerId] = sessionId;
             localStorage.setItem("activeSessions", JSON.stringify(activeSessions));
@@ -134,7 +172,7 @@ export default function Chargers() {
         }
     };
 
-    // ✅ Stop session
+    // Stop session
     const stopSession = async (sessionId, chargerId) => {
         try {
             const res = await fetch(`${BACKEND}/api/sessions/${sessionId}/stop`, {
@@ -143,7 +181,6 @@ export default function Chargers() {
             });
             if (!res.ok) throw new Error("Failed to stop session");
 
-            // ✅ Remove from localStorage
             const activeSessions = JSON.parse(localStorage.getItem("activeSessions") || "{}");
             delete activeSessions[chargerId];
             localStorage.setItem("activeSessions", JSON.stringify(activeSessions));
@@ -161,10 +198,6 @@ export default function Chargers() {
         ? [Number(chargers[0].latitude), Number(chargers[0].longitude)]
         : [45.267136, 19.833549];
 
-    if (!roleChecked) return <FullScreenLoader message="Checking access..." />;
-    if (loading) return <FullScreenLoader message="Loading chargers..." />;
-    if (error) return <p className="p-6 text-red-900">Error: {error}</p>;
-
     const flyToCharger = (charger) => {
         const position = [Number(charger.latitude), Number(charger.longitude)];
         setSelectedPosition(position);
@@ -172,75 +205,56 @@ export default function Chargers() {
         if (popup) popup.openPopup();
     };
 
+    if (!roleChecked) return <FullScreenLoader message="Checking access..." />;
+    if (loading) return <FullScreenLoader message="Loading chargers..." />;
+    if (error) return <p className="p-6 text-red-900">Error: {error}</p>;
+
     return (
-        <div className="min-h-screen bg-green-100 p-6 flex flex-col items-center">
-            <h1 className="text-2xl font-bold mb-4">Nearby Chargers</h1>
+        <div className="min-h-screen bg-green-100 flex flex-col md:flex-row">
+            {/* Map */}
+            <div className="md:w-2/3 h-[80vh] md:h-screen rounded overflow-hidden shadow">
+                <MapContainer center={mapCenter} zoom={13} style={{ height: "100%", width: "100%" }}>
+                    <TileLayer
+                        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                        attribution="&copy; OpenStreetMap contributors"
+                    />
+                    {chargers.map((charger) => (
+                        <Marker
+                            key={charger.id || charger._id}
+                            position={[Number(charger.latitude), Number(charger.longitude)]}
+                            icon={charger.available ? greenIcon : redIcon}
+                            ref={(el) => {
+                                if (el) popupRefs.current[charger.id || charger._id] = el.getPopup();
+                            }}
+                        >
+                            <Popup>
+                                <strong>{charger.name}</strong>
+                                <br />
+                                {charger.address || "No address"}
+                                <br />
+                                Power: {charger.powerKw} kW
+                                <br />
+                                Price: {charger.pricePerKwh} €/kWh
+                                <br />
+                                Status: {charger.available ? "Available" : "Occupied"}
+                            </Popup>
+                        </Marker>
+                    ))}
+                    {selectedPosition && <FlyTo position={selectedPosition} />}
+                </MapContainer>
+            </div>
 
-            <MapContainer center={mapCenter} zoom={13} style={{ height: "400px", width: "100%" }}>
-                <TileLayer
-                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                    attribution="&copy; OpenStreetMap contributors"
-                />
+            {/* Charger list */}
+            <div className="md:w-1/3 flex flex-col gap-4 overflow-y-auto p-4 max-h-[80vh] md:max-h-screen">
+                <h1 className="text-2xl font-bold mb-2">Nearby Chargers</h1>
                 {chargers.map((charger) => (
-                    <Marker
+                    <ChargerCard
                         key={charger.id || charger._id}
-                        position={[Number(charger.latitude), Number(charger.longitude)]}
-                        icon={charger.available ? greenIcon : redIcon}
-                        ref={(el) => {
-                            if (el) popupRefs.current[charger.id || charger._id] = el.getPopup();
-                        }}
-                    >
-                        <Popup>
-                            <strong>{charger.name}</strong>
-                            <br />
-                            {charger.address || "No address"}
-                            <br />
-                            Power: {charger.powerKw} kW
-                            <br />
-                            Price: {charger.pricePerKwh} €/kWh
-                            <br />
-                            Status: {charger.available ? "Available" : "Occupied"}
-                        </Popup>
-                    </Marker>
-                ))}
-                {selectedPosition && <FlyTo position={selectedPosition} />}
-            </MapContainer>
-
-            <div className="mt-6 w-full max-w-xl flex flex-col gap-4">
-                {chargers.map((charger) => (
-                    <div
-                        key={charger.id || charger._id}
-                        className="bg-white p-4 rounded shadow flex justify-between items-center"
-                    >
-                        <div>
-                            <span
-                                className="font-bold text-blue-600 cursor-pointer hover:underline"
-                                onClick={() => flyToCharger(charger)}
-                            >
-                                {charger.name}
-                            </span>
-                            <br />
-                            {charger.address || "No address"}
-                            <br />
-                            {charger.available ? "Available" : "Occupied"}
-                        </div>
-
-                        {charger.available ? (
-                            <button
-                                className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700"
-                                onClick={() => startSession(charger.id)}
-                            >
-                                Start
-                            </button>
-                        ) : charger.activeSessionId ? (
-                            <button
-                                className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700"
-                                onClick={() => stopSession(charger.activeSessionId, charger.id)}
-                            >
-                                Stop
-                            </button>
-                        ) : null}
-                    </div>
+                        charger={charger}
+                        onStart={startSession}
+                        onStop={stopSession}
+                        onFlyTo={flyToCharger}
+                    />
                 ))}
             </div>
         </div>

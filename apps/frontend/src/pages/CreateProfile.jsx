@@ -1,7 +1,7 @@
 // src/pages/CreateProfile.jsx
 import React, { useState } from "react";
 
-const BACKEND = "http://localhost:3000";
+const BACKEND = import.meta.env.VITE_BACKEND_URL;
 
 export default function CreateProfile() {
     const [form, setForm] = useState({

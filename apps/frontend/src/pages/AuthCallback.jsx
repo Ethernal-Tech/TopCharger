@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import FullScreenLoader from "../components/FullScreenLoader.jsx";
 
-const BACKEND = "http://localhost:3000";
+const BACKEND = import.meta.env.VITE_BACKEND_URL;
 
 export default function AuthCallback() {
     const [loading, setLoading] = useState(true); // Loading spinner

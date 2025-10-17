@@ -1,8 +1,8 @@
 // src/pages/Dashboard.jsx
 import React, { useEffect, useState } from "react";
 
-const FRONTEND = "http://localhost:5173";
-const BACKEND = "http://localhost:3000";
+const FRONTEND = import.meta.env.VITE_FRONTEND_URL || "http://localhost:5173";
+const BACKEND = import.meta.env.VITE_BACKEND_URL;
 
 export default function Dashboard() {
     const [loading, setLoading] = useState(true);
@@ -23,7 +23,7 @@ export default function Dashboard() {
 
     const handleGoogleLogin = () => {
         const callbackUrl = encodeURIComponent(`${FRONTEND}/auth/callback`);
-        window.location.href = `${BACKEND}/api/auth/signin/google?callbackUrl=${callbackUrl}`;
+        window.location.href = `${BACKEND}/api/auth/signin/google}`;
     };
 
     const handleWalletLogin = () => {

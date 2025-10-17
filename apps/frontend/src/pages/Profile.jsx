@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import FullScreenLoader from "../components/FullScreenLoader.jsx";
 
-const BACKEND = "http://localhost:3000";
+const BACKEND = import.meta.env.VITE_BACKEND_URL;
 
 export default function Profile() {
     const [profile, setProfile] = useState(null);

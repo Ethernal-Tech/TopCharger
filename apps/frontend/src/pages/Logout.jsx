@@ -2,8 +2,8 @@
 import { useEffect } from "react";
 import FullScreenLoader from "../components/FullScreenLoader.jsx";
 
-const BACKEND = "http://localhost:3000";
-const FRONTEND = "http://localhost:5173";
+const BACKEND = import.meta.env.VITE_BACKEND_URL;
+const FRONTEND = import.meta.env.VITE_FRONTEND_URL || "http://localhost:5173";
 
 export default function LogoutPage() {
     useEffect(() => {

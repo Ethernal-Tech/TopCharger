@@ -4,6 +4,8 @@ import Google from "next-auth/providers/google";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import { prisma } from "@/lib/db";
 
+const FRONTEND = process.env.VITE_FRONTEND_URL || "http://localhost:5173"; // your frontend URL
+
 export const authOptions: NextAuthOptions = {
   pages: {
     signIn: '/auth/signin', // Specify your custom sign-in page route here
@@ -42,8 +44,8 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
     async redirect({ url, baseUrl }) {
-      if (url.startsWith("http://localhost:5173")) return url;
-      return "http://localhost:5173/auth/callback";
+      if (url.startsWith(FRONTEND)) return url;
+      return `${FRONTEND}/auth/callback`;
     },
   },
   // jwt: { secret: process.env.NEXTAUTH_SECRET },

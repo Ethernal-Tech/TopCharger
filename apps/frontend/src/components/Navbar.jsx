@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
-const BACKEND = "http://localhost:3000";
-const FRONTEND = "http://localhost:5173";
+const BACKEND = import.meta.env.VITE_BACKEND_URL;
+const FRONTEND = import.meta.env.VITE_FRONTEND_URL || "http://localhost:5173";
 
 export default function Navbar() {
     const navigate = useNavigate();
