@@ -40,7 +40,7 @@ export default function Navbar() {
             <div className="flex items-center gap-6">
                 {/* Logo */}
                 <div className="flex items-center gap-3">
-                    <img src="/logo.png" alt="TopCharger Logo" className="h-12 w-12 object-contain" />
+                    <img src="/logo-modified.png" alt="TopCharger Logo" className="h-12 w-12 object-contain" />
                     <h1 className="text-2xl font-bold text-green-900">TopCharger</h1>
                 </div>
 

@@ -48,10 +48,6 @@ export default function Dashboard() {
             {/* Background overlay */}
             <div className="absolute inset-0 bg-white/30 backdrop-blur-sm"></div>
 
-            {/* Decorative blurred circles */}
-            <div className="absolute -top-32 -left-32 w-96 h-96 bg-green-400 rounded-full filter blur-3xl opacity-30 animate-pulse"></div>
-            <div className="absolute -bottom-32 -right-32 w-96 h-96 bg-green-500 rounded-full filter blur-3xl opacity-30 animate-pulse"></div>
-
             {/* Hero content */}
             <div className="relative z-10 flex flex-col items-center justify-start max-w-4xl">
                 {/* Title */}
