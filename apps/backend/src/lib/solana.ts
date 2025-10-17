@@ -15,6 +15,7 @@ import bs58 from "bs58";
 import fs from "node:fs";
 import crypto from "node:crypto";
 import path from "node:path";
+import { Buffer } from "node:buffer";
 
 // -------------------------
 // RPC + Payer
@@ -109,6 +110,15 @@ export function hashToU64(s: string): bigint {
   );
 }
 
+// export the 32-byte hash helper so routes can build match_id from sessionId
+export function hash32(input: string): Buffer {
+  return crypto
+    .createHash("sha256")
+    .update(input, "utf8")
+    .digest()
+    .subarray(0, 32);
+}
+
 // -------------------------
 // IDL (single canonical path)
 // -------------------------
@@ -138,7 +148,10 @@ function loadIdl(): IdlWithDisc {
 
 function discriminatorFor(ixName: string): Buffer {
   const idl = loadIdl();
-  console.debug(`[solana] discriminatorFor("${ixName}") → reading IDL from:`, idlPath);
+  console.debug(
+    `[solana] discriminatorFor("${ixName}") → reading IDL from:`,
+    idlPath
+  );
   const ix = idl.instructions.find((i) => i.name === ixName);
   if (!ix?.discriminator) {
     throw new Error(
@@ -225,6 +238,16 @@ export async function deriveUserPdaFromUserId(
     programId
   );
   return userPda;
+}
+
+/** Derive match PDA from the 32-byte match_id */
+export function deriveMatchPdaFromMatchId(matchId32: Buffer): PublicKey {
+  const programId = getProgramId();
+  const [pda] = PublicKey.findProgramAddressSync(
+    [Buffer.from("match"), matchId32],
+    programId
+  );
+  return pda;
 }
 
 /** Manual decode of the on-chain User account without full IDL decode. */
@@ -388,19 +411,22 @@ export async function deriveMatchPda(
 
 export type ReserveChargerArgs = {
   backendUserId: string; // driver backend id -> hashed on-chain
-  chargerPda: string; // base58 PDA of ChargerAccount (must exist)
+  chargerPda: string; // ChargerAccount PDA (must exist)
+  matchId32: Buffer; // 32 bytes (sha256(sessionId) recommended)
 };
 
 export async function sendReserveCharger(
   args: ReserveChargerArgs
 ): Promise<{ signature: string; matchPda: string }> {
-  const pid = programId();
+  const programId = getProgramId();
   const charger = new PublicKey(args.chargerPda);
-  const matchPda = await deriveMatchPda(charger);
+  const matchPda = deriveMatchPdaFromMatchId(args.matchId32);
 
   const disc = discriminatorFor("reserve_charger");
   const driverHash = sha256_32(args.backendUserId); // [u8;32]
-  const data = Buffer.concat([disc, driverHash]);
+
+  // Data order from IDL: discriminator + match_id(32) + driver_user_hash(32)
+  const data = Buffer.concat([disc, args.matchId32, driverHash]);
 
   const keys = [
     { pubkey: charger, isSigner: false, isWritable: true },
@@ -409,7 +435,7 @@ export async function sendReserveCharger(
     { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
   ];
 
-  const ix = new TransactionInstruction({ programId: pid, keys, data });
+  const ix = new TransactionInstruction({ programId, keys, data });
   const tx = new Transaction().add(ix);
   const signature = await sendAndConfirmTransaction(connection, tx, [payer], {
     commitment: "confirmed",
@@ -419,22 +445,29 @@ export async function sendReserveCharger(
 }
 
 export type ConfirmChargeArgs = {
-  matchPda: string; // base58 PDA of MatchAccount
-  wasCorrect: boolean;
+  matchPda: string; // PDA of MatchAccount (derived from match_id)
+  chargerPda: string; // PDA of ChargerAccount (IDL requires charger account too)
+  wasCorrect: boolean; // MVP: true
 };
 
 export async function sendConfirmCharge(
   args: ConfirmChargeArgs
 ): Promise<{ signature: string }> {
-  const pid = programId();
+  const programId = getProgramId();
   const matchPubkey = new PublicKey(args.matchPda);
+  const chargerPubkey = new PublicKey(args.chargerPda);
 
   const disc = discriminatorFor("confirm_charge");
+  // Data order from IDL: discriminator + was_correct(bool)
   const data = Buffer.concat([disc, Buffer.from([args.wasCorrect ? 1 : 0])]);
 
-  const keys = [{ pubkey: matchPubkey, isSigner: false, isWritable: true }];
+  // IDL requires: match_account (writable), charger (writable)
+  const keys = [
+    { pubkey: matchPubkey, isSigner: false, isWritable: true },
+    { pubkey: chargerPubkey, isSigner: false, isWritable: true },
+  ];
 
-  const ix = new TransactionInstruction({ programId: pid, keys, data });
+  const ix = new TransactionInstruction({ programId, keys, data });
   const tx = new Transaction().add(ix);
   const signature = await sendAndConfirmTransaction(connection, tx, [payer], {
     commitment: "confirmed",

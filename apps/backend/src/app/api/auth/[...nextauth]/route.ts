@@ -43,7 +43,7 @@ export const authOptions: NextAuthOptions = {
       }
       return session;
     },
-    async redirect({ url, baseUrl }) {
+    async redirect({ url }) {
       if (url.startsWith(FRONTEND)) return url;
       return `${FRONTEND}/auth/callback`;
     },
