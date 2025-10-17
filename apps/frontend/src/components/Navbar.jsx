@@ -38,7 +38,11 @@ export default function Navbar() {
     return (
         <nav className="bg-white/90 backdrop-blur-md shadow-md p-4 flex justify-between items-center">
             <div className="flex items-center gap-6">
-                <h1 className="text-2xl font-bold text-green-900">⚡ TopCharger</h1>
+                {/* Logo */}
+                <div className="flex items-center gap-3">
+                    <img src="/logo.png" alt="TopCharger Logo" className="h-12 w-12 object-contain" />
+                    <h1 className="text-2xl font-bold text-green-900">TopCharger</h1>
+                </div>
 
                 <div className="flex gap-4 text-green-800 font-medium">
                     {googleToken && role === "HOST" && (
