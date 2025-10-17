@@ -43,6 +43,7 @@ pub mod topcharger_program {
     /// Driver reserves a charger (allocates)
     pub fn reserve_charger(
         ctx: Context<ReserveCharger>,
+        match_id: [u8; 32],
         driver_user_hash: [u8; 32],
     ) -> Result<()> {
         let charger = &mut ctx.accounts.charger;
@@ -51,6 +52,7 @@ pub mod topcharger_program {
         require!(charger.status == 0, ErrorCode::ChargerNotAvailable);
         charger.status = 1; // allocated
 
+        match_acc.match_id = match_id;
         match_acc.driver_user_hash = driver_user_hash;
         match_acc.charger = ctx.accounts.charger.key();
         match_acc.status = 0; // pending confirmation
@@ -60,8 +62,12 @@ pub mod topcharger_program {
     /// Driver confirms charging complete
     pub fn confirm_charge(ctx: Context<ConfirmCharge>, was_correct: bool) -> Result<()> {
         let match_acc = &mut ctx.accounts.match_account;
+        let charger = &mut ctx.accounts.charger;
+        // Mark match as completed
         match_acc.status = 1; // completed
         match_acc.confirmed_correct = was_correct;
+        // Free the charger back to available
+        charger.status = 0; // available
         Ok(())
     }
 }
@@ -109,6 +115,7 @@ pub struct CreateCharger<'info> {
 }
 
 #[derive(Accounts)]
+#[instruction(match_id: [u8; 32])]
 pub struct ReserveCharger<'info> {
     #[account(mut)]
     pub charger: Account<'info, ChargerAccount>,
@@ -117,7 +124,7 @@ pub struct ReserveCharger<'info> {
         init,
         payer = authority,
         space = 8 + std::mem::size_of::<MatchAccount>(),
-        seeds = [b"match", charger.key().as_ref()],
+        seeds = [b"match", match_id.as_ref()],
         bump
     )]
     pub match_account: Account<'info, MatchAccount>,
@@ -130,8 +137,10 @@ pub struct ReserveCharger<'info> {
 
 #[derive(Accounts)]
 pub struct ConfirmCharge<'info> {
-    #[account(mut)]
+    #[account(mut, has_one = charger)]
     pub match_account: Account<'info, MatchAccount>,
+    #[account(mut)]
+    pub charger: Account<'info, ChargerAccount>,
 }
 
 /// On-chain user record (host or driver)
@@ -158,6 +167,7 @@ pub struct ChargerAccount {
 /// Match between driver and charger
 #[account]
 pub struct MatchAccount {
+    pub match_id: [u8; 32],
     pub driver_user_hash: [u8; 32],
     pub charger: Pubkey,
     pub status: u8, // 0=pending, 1=completed

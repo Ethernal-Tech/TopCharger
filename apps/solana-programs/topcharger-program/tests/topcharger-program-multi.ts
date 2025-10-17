@@ -73,26 +73,21 @@ describe("topcharger-program-multi", () => {
 
     // create drivers and reserve each charger
     const numDrivers = numChargers;
-    const drivers: anchor.web3.Keypair[] = [];
-    const driverHashes: Buffer[] = [];
-
     for (let i = 0; i < numDrivers; i++) {
-      const driver = anchor.web3.Keypair.generate();
-      drivers.push(driver);
-
       const dHash = Buffer.alloc(32, 0);
       dHash[0] = 20 + i;
-      driverHashes.push(dHash);
 
-      // reserve the i-th charger
+      // reserve the i-th charger using 32-byte match_id
       const chargerPda = chargerPdas[i];
+      const matchIdBuf = Buffer.alloc(32, 0);
+      matchIdBuf[0] = 100 + i; // simple uniqueness for test
       const [matchPda] = await anchor.web3.PublicKey.findProgramAddress(
-        [Buffer.from("match"), chargerPda.toBuffer()],
+        [Buffer.from("match"), matchIdBuf],
         program.programId
       );
 
       await program.methods
-        .reserveCharger(Array.from(dHash))
+        .reserveCharger(Array.from(matchIdBuf), Array.from(dHash))
         .accounts({
           charger: chargerPda,
           matchAccount: matchPda,
@@ -105,6 +100,7 @@ describe("topcharger-program-multi", () => {
       expect(chargerAfterReserve.status).to.equal(1);
 
       const matchAccount = await program.account.matchAccount.fetch(matchPda);
+      expect(Buffer.from(matchAccount.matchId)).to.deep.equal(matchIdBuf);
       expect(Buffer.from(matchAccount.driverUserHash)).to.deep.equal(dHash);
       expect(matchAccount.charger.toBase58()).to.equal(chargerPda.toBase58());
       expect(matchAccount.status).to.equal(0);
@@ -112,12 +108,15 @@ describe("topcharger-program-multi", () => {
       // confirm charge
       await program.methods
         .confirmCharge(true)
-        .accounts({ matchAccount: matchPda } as any)
+        .accounts({ matchAccount: matchPda, charger: chargerPda } as any)
         .rpc();
 
       const matchAfterConfirm = await program.account.matchAccount.fetch(matchPda);
-      expect(matchAfterConfirm.status).to.equal(1);
-      expect(matchAfterConfirm.confirmedCorrect).to.equal(true);
+  expect(matchAfterConfirm.status).to.equal(1);
+  expect(matchAfterConfirm.confirmedCorrect).to.equal(true);
+  // Charger should be freed for next reservations
+  const chargerAfterConfirm = await program.account.chargerAccount.fetch(chargerPda);
+  expect(chargerAfterConfirm.status).to.equal(0);
     }
   });
 });
