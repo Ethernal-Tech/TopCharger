@@ -7,4 +7,6 @@ body {
     background-size: cover;
     background-position: center;
     background-attachment: fixed;
+    /* CHANGED: add a brand-ish fallback color so text stays readable while image loads */
+    background-color: #064e3b; /* emerald-900 */
 }
