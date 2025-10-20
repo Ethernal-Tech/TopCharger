@@ -12,30 +12,29 @@ export default function Sessions() {
     // Get role from sessionStorage
     const role = sessionStorage.getItem("tc_role") || "driver"; // default to driver
 
-    // Fetch sessions based on role
-    const fetchSessions = async () => {
-        setLoading(true);
-        setError(null);
-        try {
-            const res = await fetch(`${BACKEND}/api/sessions?scope=${role}`, {
-                method: "GET",
-                credentials: "include",
-            });
-            if (!res.ok) throw new Error("Failed to fetch sessions");
-
-            const data = await res.json();
-            setSessions(Array.isArray(data.items) ? data.items : []);
-        } catch (err) {
-            console.error(err);
-            setError(err.message || "Unknown error");
-        } finally {
-            setLoading(false);
-        }
-    };
-
     useEffect(() => {
+        const fetchSessions = async () => {
+            setLoading(true);
+            setError(null);
+            try {
+                const res = await fetch(`${BACKEND}/api/sessions?scope=${role}`, {
+                    method: "GET",
+                    credentials: "include",
+                });
+                if (!res.ok) throw new Error("Failed to fetch sessions");
+
+                const data = await res.json();
+                setSessions(Array.isArray(data.items) ? data.items : []);
+            } catch (err) {
+                console.error(err);
+                setError(err.message || "Unknown error");
+            } finally {
+                setLoading(false);
+            }
+        };
+
         fetchSessions();
-    }, [role]);
+    }, [role]); // ✅ only dependency is role
 
     if (loading) return <FullScreenLoader />;
     if (error) return <p className="text-red-600 p-6">Error: {error}</p>;

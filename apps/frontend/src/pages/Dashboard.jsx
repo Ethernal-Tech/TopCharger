@@ -22,8 +22,9 @@ export default function Dashboard() {
 
     const handleGoogleLogin = () => {
         const callbackUrl = encodeURIComponent(`${FRONTEND}/auth/callback`);
-        window.location.href = `${BACKEND}/api/auth/signin/google}`;
+        window.location.href = `${BACKEND}/api/auth/signin/google?callbackUrl=${callbackUrl}`;
     };
+
 
     const handleWalletLogin = () => {
         if (window.solana?.isPhantom) {

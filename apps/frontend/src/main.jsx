@@ -2,7 +2,8 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { AuthProvider, useAuth } from "./context/AuthContext.jsx";
+import { AuthProvider } from "./context/AuthContext.jsx";
+import { useAuth } from './context/UseAuth.js';
 import './index.css';
 import Navbar from "./components/Navbar.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
@@ -17,11 +18,9 @@ import AuthCallback from "./pages/AuthCallback.jsx";
 import Sessions from "./pages/Sessions.jsx";
 import Logout from "./pages/Logout.jsx";
 
-
-// Wrapper to delay rendering until auth is confirmed
-function AppRoutes() {
+// ✅ Export to satisfy Fast Refresh
+export function AppRoutes() {
   const { loading } = useAuth();
-
 
   if (loading) {
     return (
@@ -64,5 +63,4 @@ createRoot(document.getElementById("root")).render(
       </AuthProvider>
     </BrowserRouter>
   </StrictMode>
-
 );

@@ -1,13 +1,13 @@
-import { createContext, useContext, useEffect, useState } from "react";
+// src/context/AuthProvider.jsx
+import { createContext, useEffect, useState } from "react";
+import { BACKEND } from "./Constants";
 
-const BACKEND = import.meta.env.VITE_BACKEND_URL;
-
-const AuthContext = createContext();
+const AuthContextInternal = createContext(); // keep internal only
 
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [role, setRole] = useState(null);
-    const [loading, setLoading] = useState(true); // true until auth is confirmed
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         (async () => {
@@ -43,10 +43,10 @@ export const AuthProvider = ({ children }) => {
     }, []);
 
     return (
-        <AuthContext.Provider value={{ user, role, loading }}>
+        <AuthContextInternal.Provider value={{ user, role, loading }}>
             {children}
-        </AuthContext.Provider>
+        </AuthContextInternal.Provider>
     );
 };
 
-export const useAuth = () => useContext(AuthContext);
+export default AuthContextInternal; // export default so useAuth.js can import it
