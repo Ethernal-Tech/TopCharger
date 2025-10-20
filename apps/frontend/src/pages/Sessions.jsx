@@ -49,6 +49,7 @@ export default function Sessions() {
                 <table className="w-full min-w-[900px] text-left border-collapse">
                     <thead className="bg-green-200">
                         <tr>
+                            <th className="p-3">Session ID</th>
                             <th className="p-3">Charger</th>
                             <th className="p-3">Connector</th>
                             <th className="p-3">Status</th>
@@ -61,13 +62,18 @@ export default function Sessions() {
                     <tbody>
                         {sessions.map((s) => (
                             <tr key={s.id} className="border-b hover:bg-green-50">
-                                <td className="p-3 font-semibold">{s.chargerId}</td>
+                                <td className="p-3 font-semibold">{s.id}</td>
+                                <td className="p-3">{s.chargerNameSnapshot}</td>
                                 <td className="p-3">{s.connectorSnapshot}</td>
                                 <td className="p-3">{s.status}</td>
                                 <td className="p-3">{new Date(s.startedAt).toLocaleString()}</td>
                                 <td className="p-3">{s.stoppedAt ? new Date(s.stoppedAt).toLocaleString() : "-"}</td>
-                                <td className="p-3">{s.energyKwh ?? "-"}</td>
-                                <td className="p-3">{s.costTotal ?? "-"}</td>
+                                <td className="p-3">
+                                    {s.energyKwh !== undefined && s.energyKwh !== null ? s.energyKwh.toFixed(2) : "-"}
+                                </td>
+                                <td className="p-3">
+                                    {s.costTotal !== undefined && s.costTotal !== null ? s.costTotal.toFixed(2) : "-"}
+                                </td>
                             </tr>
                         ))}
                     </tbody>
