@@ -16,5 +16,5 @@ export default function LogoutPage() {
         window.location.href = `${BACKEND}/api/auth/signout?callbackUrl=${FRONTEND}`;
     }, []);
 
-    return <FullScreenLoader message="Logging out..." />;
+    return <FullScreenLoader />;
 }

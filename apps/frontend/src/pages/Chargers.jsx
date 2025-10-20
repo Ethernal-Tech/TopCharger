@@ -229,8 +229,8 @@ export default function Chargers() {
         if (popup) popup.openPopup();
     };
 
-    if (!roleChecked) return <FullScreenLoader message="Checking access..." />;
-    if (loading) return <FullScreenLoader message="Loading chargers..." />;
+    if (!roleChecked) return <FullScreenLoader />;
+    if (loading) return <FullScreenLoader />;
     if (error) return <p className="p-6 text-red-900">Error: {error}</p>;
 
     return (

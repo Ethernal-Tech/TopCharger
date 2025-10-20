@@ -66,7 +66,7 @@ export default function AuthCallback() {
     }, [navigate]);
 
     // Show spinner while fetching
-    if (loading) return <FullScreenLoader message="Signing in..." />;
+    if (loading) return <FullScreenLoader />;
 
     // Optionally show error if needed
     if (error) {

@@ -45,7 +45,7 @@ export default function Profile() {
         fetchProfile();
     }, []);
 
-    if (loading) return <FullScreenLoader message="Loading..." />;
+    if (loading) return <FullScreenLoader />;
     if (error) return <div className="text-center text-red-500 mt-10">{error}</div>;
 
     return (

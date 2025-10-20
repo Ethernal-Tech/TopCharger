@@ -37,7 +37,7 @@ export default function Sessions() {
         fetchSessions();
     }, [role]);
 
-    if (loading) return <FullScreenLoader message="Loading sessions..." />;
+    if (loading) return <FullScreenLoader />;
     if (error) return <p className="text-red-600 p-6">Error: {error}</p>;
     if (sessions.length === 0) return <p className="text-green-900 p-6">No sessions found.</p>;
 

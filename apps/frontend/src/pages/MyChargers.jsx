@@ -107,7 +107,7 @@ export default function MyChargers() {
 
     // ✅ Show full-screen loader like login (blue style)
     if (loading) {
-        return <FullScreenLoader message="Fetching your chargers..." />;
+        return <FullScreenLoader />;
     }
 
     // ❌ Error fallback
