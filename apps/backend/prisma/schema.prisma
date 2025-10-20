@@ -124,6 +124,7 @@ model ChargingSession {
   pricePerKwhSnapshot Float
   powerKwSnapshot     Float
   connectorSnapshot   ConnectorType
+  chargerNameSnapshot String 
 
   // Times & metering
   startedAt DateTime  @default(now())
