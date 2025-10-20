@@ -44,6 +44,7 @@ export async function POST(
           pricePerKwhSnapshot: charger.pricePerKwh,
           powerKwSnapshot: charger.powerKw,
           connectorSnapshot: charger.connector,
+          chargerNameSnapshot: charger.name,
         },
       });
       await tx.charger.update({
