@@ -181,7 +181,7 @@ export default function MyChargers() {
                                             <br />
                                             Connector: {c.connector}
                                             <br />
-                                            Status: {c.available ? "✅ Open" : "❌ Closed"}
+                                            Status: {c.available ? "✅ Available" : "❌ Occupied"}
                                         </Popup>
                                     </Marker>
                                 ) : null
@@ -214,7 +214,7 @@ export default function MyChargers() {
                                     <td className="p-3">{c.longitude}</td>
                                     <td className="p-3">${c.pricePerKwh}</td>
                                     <td className="p-3">{c.connector}</td>
-                                    <td className="p-3">{c.available ? "✅ Open" : "❌ Closed"}</td>
+                                    <td className="p-3">{c.available ? "✅ Available" : "❌ Occupied"}</td>
                                 </tr>
                             ))}
                         </tbody>

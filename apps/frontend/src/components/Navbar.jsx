@@ -82,7 +82,7 @@ export default function Navbar() {
                         onClick={handleGoogleLogout}
                         className="bg-green-700 text-white px-4 py-2 rounded hover:bg-green-800"
                     >
-                        Logout Google
+                        Logout
                     </button>
                 )}
             </div>
