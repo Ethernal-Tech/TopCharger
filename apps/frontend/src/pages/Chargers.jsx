@@ -35,7 +35,7 @@ function FlyTo({ position }) {
     return null;
 }
 
-// Charger card component (hide stop button if session is active)
+// Charger card component
 function ChargerCard({ charger, onStart, onFlyTo }) {
     return (
         <div className="bg-white p-4 rounded shadow flex justify-between items-center">
@@ -47,7 +47,7 @@ function ChargerCard({ charger, onStart, onFlyTo }) {
                     {charger.name}
                 </span>
                 <br />
-                {charger.address || "No address"}
+                Lat: {charger.latitude}, Lng: {charger.longitude}
                 <br />
                 Power: {charger.powerKw} kW
                 <br />
@@ -74,7 +74,7 @@ export default function Chargers() {
     const [error, setError] = useState(null);
     const [roleChecked, setRoleChecked] = useState(false);
     const [selectedPosition, setSelectedPosition] = useState(null);
-    const [activeSessions, setActiveSessions] = useState({});
+    const [activeSession, setActiveSession] = useState(null);
     const [progress, setProgress] = useState({});
     const popupRefs = useRef({});
 
@@ -100,47 +100,52 @@ export default function Chargers() {
         checkRole();
     }, []);
 
-    // Fetch chargers & restore sessions from localStorage
+    // Fetch chargers and active session
     useEffect(() => {
         if (!roleChecked) return;
 
-        const fetchChargers = async () => {
+        const fetchData = async () => {
             setLoading(true);
             setError(null);
             try {
-                const res = await fetch(`${BACKEND}/api/chargers`, {
+                // Fetch all chargers
+                const resChargers = await fetch(`${BACKEND}/api/chargers`, {
                     method: "GET",
                     credentials: "include",
                 });
-                const data = await res.json();
-                const parsed = Array.isArray(data)
-                    ? data
-                    : Array.isArray(data.items)
-                        ? data.items
-                        : Array.isArray(data.chargers)
-                            ? data.chargers
+                const dataChargers = await resChargers.json();
+                const parsedChargers = Array.isArray(dataChargers)
+                    ? dataChargers
+                    : Array.isArray(dataChargers.items)
+                        ? dataChargers.items
+                        : Array.isArray(dataChargers.chargers)
+                            ? dataChargers.chargers
                             : [];
 
-                const saved = JSON.parse(localStorage.getItem("activeSessions") || "{}");
-                setActiveSessions(saved);
+                setChargers(parsedChargers);
 
-                const restored = parsed.map((c) => {
-                    if (saved[c.id]) {
-                        return { ...c, available: false, activeSessionId: saved[c.id] };
-                    }
-                    return c;
+                // Fetch active session
+                const resActive = await fetch(`${BACKEND}/api/sessions/active`, {
+                    method: "GET",
+                    credentials: "include",
                 });
-
-                setChargers(restored);
+                const dataActive = await resActive.json();
+                // Only set active session if it exists
+                if (dataActive && dataActive.id) {
+                    setActiveSession(dataActive);
+                    setProgress({ [dataActive.chargerId]: 0 });
+                } else {
+                    setActiveSession(null);
+                }
             } catch (err) {
-                console.error("Fetching chargers failed:", err);
+                console.error("Fetching data failed:", err);
                 setError(err.message || "Unknown error");
             } finally {
                 setLoading(false);
             }
         };
 
-        fetchChargers();
+        fetchData();
     }, [roleChecked]);
 
     // Start session
@@ -153,21 +158,16 @@ export default function Chargers() {
             const data = await res.json();
             if (!res.ok) throw new Error(data.message || "Failed to start session");
 
-            const sessionId = data.session?.id;
-            if (!sessionId) throw new Error("Backend did not return session ID");
+            const session = data.session;
+            if (!session?.id) throw new Error("Backend did not return session ID");
 
-            const updatedSessions = { ...activeSessions, [chargerId]: sessionId };
-            localStorage.setItem("activeSessions", JSON.stringify(updatedSessions));
-            setActiveSessions(updatedSessions);
-
+            setActiveSession(session);
+            setProgress({ [session.chargerId]: 0 });
             setChargers(
                 chargers.map((c) =>
-                    c.id === chargerId ? { ...c, available: false, activeSessionId: sessionId } : c
+                    c.id === chargerId ? { ...c, available: false } : c
                 )
             );
-
-            // Start mock progress
-            setProgress((prev) => ({ ...prev, [chargerId]: 0 }));
         } catch (err) {
             alert("❌ " + err.message);
         }
@@ -182,20 +182,11 @@ export default function Chargers() {
             });
             if (!res.ok) throw new Error("Failed to stop session");
 
-            const updatedSessions = { ...activeSessions };
-            delete updatedSessions[chargerId];
-            localStorage.setItem("activeSessions", JSON.stringify(updatedSessions));
-            setActiveSessions(updatedSessions);
-
-            setProgress((prev) => {
-                const copy = { ...prev };
-                delete copy[chargerId];
-                return copy;
-            });
-
+            setActiveSession(null);
+            setProgress({});
             setChargers(
                 chargers.map((c) =>
-                    c.activeSessionId === sessionId ? { ...c, available: true, activeSessionId: null } : c
+                    c.id === chargerId ? { ...c, available: true } : c
                 )
             );
         } catch (err) {
@@ -256,7 +247,7 @@ export default function Chargers() {
                                 <Popup>
                                     <strong>{charger.name}</strong>
                                     <br />
-                                    {charger.address || "No address"}
+                                    Lat: {charger.latitude}, Lng: {charger.longitude}
                                     <br />
                                     Power: {charger.powerKw} kW
                                     <br />
@@ -286,37 +277,35 @@ export default function Chargers() {
 
             {/* Bottom section: active sessions */}
             <div className="mt-4 p-4 rounded shadow-lg bg-white/80">
-                <h2 className="text-xl font-bold mb-2">Active Charging Sessions</h2>
-                {Object.entries(activeSessions).length === 0 ? (
-                    <p>No active sessions</p>
+                <h2 className="text-xl font-bold mb-2">Active Charging Session</h2>
+                {!activeSession ? (
+                    <p>No active session</p>
                 ) : (
-                    Object.entries(activeSessions).map(([chargerId, sessionId]) => {
-                        const charger = chargers.find((c) => c.id === chargerId);
-                        const prog = progress[chargerId] || 0;
-
-                        return (
-                            <div
-                                key={sessionId}
-                                className="flex items-center justify-between p-2 bg-green-50 rounded mb-2"
-                            >
-                                <div className="flex-1 mr-4">
-                                    <span className="font-semibold">{charger?.name || chargerId}</span>
-                                    <div className="w-full bg-gray-300 rounded h-3 mt-1">
-                                        <div
-                                            className="bg-green-600 h-3 rounded"
-                                            style={{ width: `${prog}%` }}
-                                        />
-                                    </div>
-                                </div>
-                                <button
-                                    className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700"
-                                    onClick={() => stopSession(sessionId, chargerId)}
-                                >
-                                    Stop
-                                </button>
+                    <div className="flex items-center justify-between p-2 bg-green-50 rounded mb-2">
+                        <div className="flex-1 mr-4">
+                            <span className="font-semibold">{activeSession.chargerNameSnapshot}</span>
+                            <br />
+                            <span>Charger ID: {activeSession.chargerId}</span>
+                            <br />
+                            <span>Driver ID: {activeSession.driverId}</span>
+                            <br />
+                            <span>Host ID: {activeSession.hostId}</span>
+                            <br />
+                            <span>Started at: {new Date(activeSession.startedAt).toLocaleString()}</span>
+                            <div className="w-full bg-gray-300 rounded h-3 mt-1">
+                                <div
+                                    className="bg-green-600 h-3 rounded"
+                                    style={{ width: `${progress[activeSession.chargerId] || 0}%` }}
+                                />
                             </div>
-                        );
-                    })
+                        </div>
+                        <button
+                            className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700"
+                            onClick={() => stopSession(activeSession.id, activeSession.chargerId)}
+                        >
+                            Stop
+                        </button>
+                    </div>
                 )}
             </div>
         </div>

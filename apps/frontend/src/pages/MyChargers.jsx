@@ -194,6 +194,8 @@ export default function MyChargers() {
                         <thead className="bg-green-200">
                             <tr>
                                 <th className="p-3">Name</th>
+                                <th className="p-3">Latitude</th>
+                                <th className="p-3">Longitude</th>
                                 <th className="p-3">Price</th>
                                 <th className="p-3">Connector</th>
                                 <th className="p-3">Status</th>
@@ -208,6 +210,8 @@ export default function MyChargers() {
                                     >
                                         {c.name}
                                     </td>
+                                    <td className="p-3">{c.latitude}</td>
+                                    <td className="p-3">{c.longitude}</td>
                                     <td className="p-3">${c.pricePerKwh}</td>
                                     <td className="p-3">{c.connector}</td>
                                     <td className="p-3">{c.available ? "✅ Open" : "❌ Closed"}</td>
