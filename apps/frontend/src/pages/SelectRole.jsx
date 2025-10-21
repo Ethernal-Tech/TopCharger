@@ -1,4 +1,3 @@
-// src/pages/SelectRole.jsx
 import { useState } from "react";
 
 const BACKEND = import.meta.env.VITE_BACKEND_URL;
@@ -19,7 +18,7 @@ export default function SelectRole() {
     const [phone, setPhone] = useState("");
     const [solanaPubkey, setSolanaPubkey] = useState("");
 
-    const handleRoleSelect = async (selectedRole) => {
+    const handleRoleSelect = (selectedRole) => {
         setRole(selectedRole);
         setError(null);
     };
@@ -43,29 +42,15 @@ export default function SelectRole() {
 
         let body = {};
         if (role === "hosts") {
-            body = {
-                businessName,
-                bankAccountIban,
-                bankAccountName,
-            };
+            body = { businessName, bankAccountIban, bankAccountName };
         } else if (role === "drivers") {
-            body = {
-                fullName,
-                phone,
-                solanaPubkey,
-                preferredConnector: "TYPE2", // default since user only uses TYPE2
-            };
+            body = { fullName, phone, solanaPubkey, preferredConnector: "TYPE2" };
         }
 
         try {
-            console.log("Posting to:", `${BACKEND}/api/${role}/profile`);
-            console.log("Body:", body);
-
             const res = await fetch(`${BACKEND}/api/${role}/profile`, {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
+                headers: { "Content-Type": "application/json" },
                 credentials: "include",
                 body: JSON.stringify(body),
             });
@@ -93,26 +78,35 @@ export default function SelectRole() {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-green-100">
-            <div className="bg-white p-8 rounded-2xl shadow-md w-full max-w-md text-center">
-                <h1 className="text-3xl font-bold text-green-900 mb-4">
+        <div className="min-h-screen relative flex items-center justify-center p-4 sm:p-6">
+            {/* Background */}
+            <div
+                className="absolute inset-0 bg-cover bg-center"
+                style={{ backgroundImage: "url('/top_charger.png')" }}
+            ></div>
+            <div className="absolute inset-0 bg-gradient-to-b from-emerald-900/70 via-emerald-900/40 to-emerald-900/70"></div>
+
+            {/* Content */}
+            <div className="relative z-10 bg-white/90 backdrop-blur-md rounded-2xl shadow-lg w-full max-w-md p-6 sm:p-8 text-center">
+                <h1 className="text-2xl sm:text-3xl font-bold text-green-900 mb-4">
                     {role ? `Complete ${role === "hosts" ? "Host" : "Driver"} Profile` : "Choose Your Role"}
                 </h1>
+
                 {!role && (
                     <>
-                        <p className="text-green-700 mb-6">
+                        <p className="text-green-800 mb-6 text-sm sm:text-base">
                             This is your first time here. Please select whether you are a host (to list chargers) or a driver (to find chargers).
                         </p>
                         <div className="flex flex-col gap-4">
                             <button
                                 onClick={() => handleRoleSelect("hosts")}
-                                className="bg-green-700 text-white py-2 rounded font-semibold hover:bg-green-800"
+                                className="bg-green-700 text-white py-2 rounded font-semibold hover:bg-green-800 transition"
                             >
                                 I am a Host
                             </button>
                             <button
                                 onClick={() => handleRoleSelect("drivers")}
-                                className="bg-blue-700 text-white py-2 rounded font-semibold hover:bg-blue-800"
+                                className="bg-blue-700 text-white py-2 rounded font-semibold hover:bg-blue-800 transition"
                             >
                                 I am a Driver
                             </button>
@@ -121,7 +115,7 @@ export default function SelectRole() {
                 )}
 
                 {role && (
-                    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+                    <form onSubmit={handleSubmit} className="flex flex-col gap-4 mt-4">
                         {role === "hosts" && (
                             <>
                                 <input
@@ -130,7 +124,7 @@ export default function SelectRole() {
                                     value={businessName}
                                     onChange={(e) => setBusinessName(e.target.value)}
                                     required
-                                    className="p-2 rounded border border-green-300 focus:ring-2 focus:ring-green-500"
+                                    className="p-2 rounded border border-green-300 focus:ring-2 focus:ring-green-500 w-full"
                                 />
                                 <input
                                     type="text"
@@ -138,7 +132,7 @@ export default function SelectRole() {
                                     value={bankAccountIban}
                                     onChange={(e) => setBankAccountIban(e.target.value)}
                                     required
-                                    className="p-2 rounded border border-green-300 focus:ring-2 focus:ring-green-500"
+                                    className="p-2 rounded border border-green-300 focus:ring-2 focus:ring-green-500 w-full"
                                 />
                                 <input
                                     type="text"
@@ -146,10 +140,11 @@ export default function SelectRole() {
                                     value={bankAccountName}
                                     onChange={(e) => setBankAccountName(e.target.value)}
                                     required
-                                    className="p-2 rounded border border-green-300 focus:ring-2 focus:ring-green-500"
+                                    className="p-2 rounded border border-green-300 focus:ring-2 focus:ring-green-500 w-full"
                                 />
                             </>
                         )}
+
                         {role === "drivers" && (
                             <>
                                 <input
@@ -158,7 +153,7 @@ export default function SelectRole() {
                                     value={fullName}
                                     onChange={(e) => setFullName(e.target.value)}
                                     required
-                                    className="p-2 rounded border border-green-300 focus:ring-2 focus:ring-green-500"
+                                    className="p-2 rounded border border-green-300 focus:ring-2 focus:ring-green-500 w-full"
                                 />
                                 <input
                                     type="text"
@@ -166,7 +161,7 @@ export default function SelectRole() {
                                     value={phone}
                                     onChange={(e) => setPhone(e.target.value)}
                                     required
-                                    className="p-2 rounded border border-green-300 focus:ring-2 focus:ring-green-500"
+                                    className="p-2 rounded border border-green-300 focus:ring-2 focus:ring-green-500 w-full"
                                 />
                                 <input
                                     type="text"
@@ -174,25 +169,25 @@ export default function SelectRole() {
                                     value={solanaPubkey}
                                     onChange={(e) => setSolanaPubkey(e.target.value)}
                                     required
-                                    className="p-2 rounded border border-green-300 focus:ring-2 focus:ring-green-500"
+                                    className="p-2 rounded border border-green-300 focus:ring-2 focus:ring-green-500 w-full"
                                 />
                             </>
                         )}
 
-                        {error && <p className="text-red-600">{error}</p>}
+                        {error && <p className="text-red-600 text-sm">{error}</p>}
 
-                        <div className="flex gap-4 mt-2">
+                        <div className="flex flex-col sm:flex-row justify-center gap-3 mt-2">
                             <button
                                 type="button"
                                 onClick={handleBack}
-                                className="bg-gray-300 text-gray-800 py-2 px-4 rounded hover:bg-gray-400"
+                                className="bg-gray-300 text-gray-800 py-2 px-4 rounded hover:bg-gray-400 transition w-full sm:w-auto"
                             >
                                 Back
                             </button>
                             <button
                                 type="submit"
                                 disabled={loading}
-                                className="bg-green-700 text-white py-2 px-4 rounded hover:bg-green-800 disabled:opacity-50"
+                                className="bg-green-700 text-white py-2 px-4 rounded hover:bg-green-800 disabled:opacity-50 transition w-full sm:w-auto"
                             >
                                 {loading ? "Saving..." : "Save"}
                             </button>
