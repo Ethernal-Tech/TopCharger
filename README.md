@@ -34,12 +34,4 @@ All charging data lives securely on **Solana**, ensuring transparency and trust 
 - Earn loyalty points and provide feedback  
 
 ---
-
-## 🧠 Tech Stack
-
-- **Frontend:** React, Tailwind CSS, Leaflet (maps)  
-- **Backend:** Node.js, Express  
-- **Blockchain:** Solana smart contracts (secure charging data & rewards)  
-- **Authentication:** Google OAuth and Solana wallet integration 
----
 **Charge anywhere. Earn everywhere.**
