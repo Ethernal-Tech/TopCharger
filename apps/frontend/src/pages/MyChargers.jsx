@@ -107,15 +107,17 @@ export default function MyChargers() {
             ? [chargers[0].latitude, chargers[0].longitude]
             : [45.267136, 19.833549];
 
-    // Full-screen loader like other pages
-    if (loading) {
-        return <FullScreenLoader />;
-    }
+    // Loader
+    if (loading) return <FullScreenLoader />;
 
+    // Error screen
     if (error) {
         return (
             <div className="min-h-screen flex items-center justify-center relative">
-                <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: "url('/bg-charger.png')" }}></div>
+                <div
+                    className="absolute inset-0 bg-cover bg-center"
+                    style={{ backgroundImage: "url('/bg-charger.png')" }}
+                ></div>
                 <div className="absolute inset-0 bg-gradient-to-b from-emerald-900/70 via-emerald-900/40 to-emerald-900/70"></div>
                 <div className="relative z-10 bg-white p-6 rounded-2xl shadow-md text-center">
                     <p className="text-red-600 font-semibold mb-4">Error: {error}</p>
@@ -131,25 +133,36 @@ export default function MyChargers() {
     }
 
     return (
-        <div className="min-h-screen p-6 flex flex-col items-center relative overflow-hidden">
-            {/* Background overlay */}
-            <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: "url('/bg-charger.png')" }}></div>
+        <div className="min-h-screen p-4 sm:p-6 flex flex-col items-center relative overflow-hidden">
+            {/* Background */}
+            <div
+                className="absolute inset-0 bg-cover bg-center"
+                style={{ backgroundImage: "url('/bg-charger.png')" }}
+            ></div>
             <div className="absolute inset-0 bg-gradient-to-b from-emerald-900/70 via-emerald-900/40 to-emerald-900/70"></div>
 
+            {/* Content */}
             <div className="relative z-10 flex flex-col items-center w-full max-w-5xl">
-                <div className="bg-white p-6 rounded-2xl shadow-md w-full mb-8">
-                    <h1 className="text-2xl font-bold text-green-900 mb-4">⚡ My Chargers</h1>
+                <div className="bg-white/95 backdrop-blur-sm p-4 sm:p-6 rounded-2xl shadow-md w-full mb-8">
+                    <h1 className="text-xl sm:text-2xl font-bold text-green-900 mb-4">
+                        ⚡ My Chargers
+                    </h1>
 
                     {/* Add Charger Form */}
                     <div className="bg-green-50 p-4 rounded mb-6">
-                        <h2 className="text-lg font-semibold text-green-900 mb-2">Add New Charger</h2>
-                        <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <h2 className="text-lg font-semibold text-green-900 mb-2">
+                            Add New Charger
+                        </h2>
+                        <form
+                            onSubmit={handleSubmit}
+                            className="grid grid-cols-1 sm:grid-cols-2 gap-4"
+                        >
                             <input
                                 name="name"
                                 value={form.name}
                                 onChange={handleChange}
                                 placeholder="Charger Name"
-                                className="p-2 rounded border border-green-300"
+                                className="p-2 rounded border border-green-300 text-sm sm:text-base"
                                 required
                             />
                             <input
@@ -158,7 +171,7 @@ export default function MyChargers() {
                                 value={form.price}
                                 onChange={handleChange}
                                 placeholder="Price ($/kWh)"
-                                className="p-2 rounded border border-green-300"
+                                className="p-2 rounded border border-green-300 text-sm sm:text-base"
                                 step="0.01"
                                 required
                             />
@@ -168,7 +181,7 @@ export default function MyChargers() {
                                 value={form.latitude}
                                 onChange={handleChange}
                                 placeholder="Latitude"
-                                className="p-2 rounded border border-green-300"
+                                className="p-2 rounded border border-green-300 text-sm sm:text-base"
                                 step="0.0001"
                                 required
                             />
@@ -178,7 +191,7 @@ export default function MyChargers() {
                                 value={form.longitude}
                                 onChange={handleChange}
                                 placeholder="Longitude"
-                                className="p-2 rounded border border-green-300"
+                                className="p-2 rounded border border-green-300 text-sm sm:text-base"
                                 step="0.0001"
                                 required
                             />
@@ -186,7 +199,7 @@ export default function MyChargers() {
                                 name="connector"
                                 value={form.connector}
                                 onChange={handleChange}
-                                className="p-2 rounded border border-green-300"
+                                className="p-2 rounded border border-green-300 text-sm sm:text-base"
                             >
                                 <option value="TYPE2">Type2</option>
                                 <option value="CCS2">CCS2</option>
@@ -198,7 +211,7 @@ export default function MyChargers() {
                             <button
                                 type="submit"
                                 disabled={adding}
-                                className="bg-green-700 text-white py-2 px-4 rounded hover:bg-green-800"
+                                className="bg-green-700 text-white py-2 px-4 rounded hover:bg-green-800 text-sm sm:text-base"
                             >
                                 {adding ? "Adding..." : "Add Charger"}
                             </button>
@@ -206,7 +219,7 @@ export default function MyChargers() {
                     </div>
 
                     {/* Map */}
-                    <div className="h-96 w-full rounded-2xl overflow-hidden mb-4">
+                    <div className="h-72 sm:h-96 w-full rounded-2xl overflow-hidden mb-4">
                         <MapContainer
                             center={mapCenter}
                             zoom={13}
@@ -237,35 +250,44 @@ export default function MyChargers() {
                     </div>
 
                     {/* Table */}
-                    <table className="w-full text-left border-collapse">
-                        <thead className="bg-green-200">
-                            <tr>
-                                <th className="p-3">Name</th>
-                                <th className="p-3">Latitude</th>
-                                <th className="p-3">Longitude</th>
-                                <th className="p-3">Price</th>
-                                <th className="p-3">Connector</th>
-                                <th className="p-3">Status</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {chargers.map((c) => (
-                                <tr key={c.id} className="border-b hover:bg-green-50">
-                                    <td
-                                        className="p-3 font-semibold text-green-900 cursor-pointer hover:underline"
-                                        onClick={() => flyToCharger(c.latitude, c.longitude, c.id)}
-                                    >
-                                        {c.name}
-                                    </td>
-                                    <td className="p-3">{c.latitude}</td>
-                                    <td className="p-3">{c.longitude}</td>
-                                    <td className="p-3">${c.pricePerKwh}</td>
-                                    <td className="p-3">{c.connector}</td>
-                                    <td className="p-3">{c.available ? "Available" : "Occupied"}</td>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left border-collapse text-sm sm:text-base">
+                            <thead className="bg-green-200">
+                                <tr>
+                                    <th className="p-3">Name</th>
+                                    <th className="p-3">Latitude</th>
+                                    <th className="p-3">Longitude</th>
+                                    <th className="p-3">Price</th>
+                                    <th className="p-3">Connector</th>
+                                    <th className="p-3">Status</th>
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                                {chargers.map((c) => (
+                                    <tr
+                                        key={c.id}
+                                        className="border-b hover:bg-green-50 transition"
+                                    >
+                                        <td
+                                            className="p-3 font-semibold text-green-900 cursor-pointer hover:underline"
+                                            onClick={() =>
+                                                flyToCharger(c.latitude, c.longitude, c.id)
+                                            }
+                                        >
+                                            {c.name}
+                                        </td>
+                                        <td className="p-3">{c.latitude}</td>
+                                        <td className="p-3">{c.longitude}</td>
+                                        <td className="p-3">${c.pricePerKwh}</td>
+                                        <td className="p-3">{c.connector}</td>
+                                        <td className="p-3">
+                                            {c.available ? "Available" : "Occupied"}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>

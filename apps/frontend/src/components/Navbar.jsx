@@ -7,7 +7,6 @@ const FRONTEND = import.meta.env.VITE_FRONTEND_URL || "http://localhost:5173";
 export default function Navbar() {
     const navigate = useNavigate();
 
-    // Initialize state from sessionStorage
     const [walletAddress, setWalletAddress] = useState(null);
     const [googleToken] = useState(() => sessionStorage.getItem("tc_token"));
     const [role] = useState(() => {
@@ -21,7 +20,6 @@ export default function Navbar() {
         }
     });
 
-    // Redirect to login if no token
     useEffect(() => {
         if (!googleToken) navigate("/");
     }, [googleToken, navigate]);
@@ -36,15 +34,20 @@ export default function Navbar() {
     };
 
     return (
-        <nav className="bg-white/90 backdrop-blur-md shadow-md p-4 flex justify-between items-center">
-            <div className="flex items-center gap-6">
-                {/* Logo */}
-                <div className="flex items-center gap-3">
-                    <img src="/logo-modified.png" alt="TopCharger Logo" className="h-12 w-12 object-contain" />
+        <nav className="w-full bg-white/90 backdrop-blur-md shadow-md px-4 sm:px-8 py-3 flex items-center justify-between">
+            {/* Left: Logo + Links */}
+            <div className="flex items-center gap-6 flex-wrap">
+                <div className="flex items-center gap-3 flex-shrink-0">
+                    <img
+                        src="/logo-modified.png"
+                        alt="TopCharger Logo"
+                        className="h-12 w-12 object-contain"
+                    />
                     <h1 className="text-2xl font-bold text-green-900">TopCharger</h1>
                 </div>
 
-                <div className="flex gap-4 text-green-800 font-medium">
+                {/* Links */}
+                <div className="flex flex-wrap gap-4 text-green-800 font-medium">
                     {googleToken && role === "HOST" && (
                         <Link to="/my-chargers" className="hover:text-green-600 transition">
                             My Chargers
@@ -68,7 +71,8 @@ export default function Navbar() {
                 </div>
             </div>
 
-            <div className="flex items-center gap-4">
+            {/* Right: Buttons */}
+            <div className="flex items-center gap-4 flex-wrap">
                 {walletAddress && (
                     <button
                         onClick={handleWalletDisconnect}

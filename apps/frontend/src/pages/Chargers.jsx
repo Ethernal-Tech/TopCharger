@@ -226,7 +226,7 @@ export default function Chargers() {
     if (error) return <p className="p-6 text-red-900">Error: {error}</p>;
 
     return (
-        <div className="min-h-screen relative flex flex-col p-6 gap-4">
+        <div className="min-h-screen relative flex flex-col p-4 sm:p-6 gap-4">
             {/* Background */}
             <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: "url('/top_charger.png')" }}></div>
             <div className="absolute inset-0 bg-gradient-to-b from-emerald-900/70 via-emerald-900/40 to-emerald-900/70"></div>
@@ -236,7 +236,7 @@ export default function Chargers() {
                 {/* Top section: map + list */}
                 <div className="flex flex-col md:flex-row gap-4">
                     {/* Map */}
-                    <div className="md:w-[95%] h-[50vh] rounded overflow-hidden shadow-lg">
+                    <div className="w-full md:w-[65%] h-64 sm:h-[50vh] md:h-[50vh] rounded overflow-hidden shadow-lg">
                         <MapContainer center={mapCenter} zoom={13} style={{ height: "100%", width: "100%" }}>
                             <TileLayer
                                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -269,8 +269,8 @@ export default function Chargers() {
                     </div>
 
                     {/* Charger list */}
-                    <div className="md:w-1/3 flex flex-col gap-4 overflow-y-auto p-4 max-h-[50vh] rounded shadow-lg bg-white/80">
-                        <h1 className="text-2xl font-bold mb-2">Nearby Chargers</h1>
+                    <div className="w-full md:w-[35%] flex flex-col gap-4 overflow-y-auto p-4 max-h-64 sm:max-h-[50vh] md:max-h-[50vh] rounded shadow-lg bg-white/80">
+                        <h1 className="text-xl sm:text-2xl font-bold mb-2">Nearby Chargers</h1>
                         {chargers.map((charger) => (
                             <ChargerCard
                                 key={charger.id || charger._id}
@@ -284,12 +284,12 @@ export default function Chargers() {
 
                 {/* Bottom section: active sessions */}
                 <div className="mt-4 p-4 rounded shadow-lg bg-white/80">
-                    <h2 className="text-xl font-bold mb-2">Active Charging Session</h2>
+                    <h2 className="text-xl sm:text-xl font-bold mb-2">Active Charging Session</h2>
                     {!activeSession ? (
                         <p>No active session</p>
                     ) : (
-                        <div className="flex items-center justify-between p-2 bg-green-50 rounded mb-2">
-                            <div className="flex-1 mr-4">
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-2 bg-green-50 rounded mb-2 gap-2">
+                            <div className="flex-1">
                                 <span className="font-semibold">{activeSession.chargerNameSnapshot}</span>
                                 <br />
                                 <span>Charger ID: {activeSession.chargerId}</span>
@@ -307,7 +307,7 @@ export default function Chargers() {
                                 </div>
                             </div>
                             <button
-                                className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700"
+                                className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 flex-shrink-0"
                                 onClick={() => stopSession(activeSession.id, activeSession.chargerId)}
                             >
                                 Stop

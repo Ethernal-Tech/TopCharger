@@ -1,4 +1,3 @@
-// apps/frontend/src/pages/Profile.jsx
 import { useState, useEffect } from "react";
 import FullScreenLoader from "../components/FullScreenLoader.jsx";
 
@@ -29,9 +28,7 @@ export default function Profile() {
                     credentials: "include",
                 });
 
-                if (!res.ok) {
-                    throw new Error("Failed to fetch profile");
-                }
+                if (!res.ok) throw new Error("Failed to fetch profile");
 
                 const data = await res.json();
                 setProfile({ ...data, role: user.role });
@@ -49,19 +46,21 @@ export default function Profile() {
 
     if (error) {
         return (
-            <div className="min-h-screen relative flex items-center justify-center">
+            <div className="min-h-screen relative flex items-center justify-center p-4">
                 <div
                     className="absolute inset-0 bg-cover bg-center"
                     style={{ backgroundImage: "url('/top_charger.png')" }}
                 ></div>
                 <div className="absolute inset-0 bg-gradient-to-b from-emerald-900/70 via-emerald-900/40 to-emerald-900/70"></div>
-                <p className="relative z-10 text-red-500 p-6 bg-white/30 rounded">{error}</p>
+                <p className="relative z-10 text-red-500 p-4 sm:p-6 bg-white/30 rounded text-center">
+                    {error}
+                </p>
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen relative flex items-center justify-center p-6">
+        <div className="min-h-screen relative flex items-center justify-center p-4 sm:p-6">
             {/* Background */}
             <div
                 className="absolute inset-0 bg-cover bg-center"
@@ -70,12 +69,12 @@ export default function Profile() {
             <div className="absolute inset-0 bg-gradient-to-b from-emerald-900/70 via-emerald-900/40 to-emerald-900/70"></div>
 
             {/* Profile Card */}
-            <div className="relative z-10 backdrop-blur-sm bg-white/90 p-10 rounded-2xl shadow-2xl w-full max-w-md">
+            <div className="relative z-10 backdrop-blur-sm bg-white/90 p-6 sm:p-10 rounded-2xl shadow-2xl w-full max-w-md sm:max-w-lg">
                 <div className="flex flex-col items-center mb-6">
-                    <div className="bg-green-700 text-white p-4 rounded-full text-4xl mb-3 shadow">
+                    <div className="bg-green-700 text-white p-4 sm:p-6 rounded-full text-3xl sm:text-4xl mb-3 shadow">
                         👤
                     </div>
-                    <h1 className="text-3xl font-bold text-green-900">
+                    <h1 className="text-2xl sm:text-3xl font-bold text-green-900 text-center">
                         {profile.role === "HOST" ? "Host Profile" : "Driver Profile"}
                     </h1>
                 </div>
@@ -105,8 +104,8 @@ export default function Profile() {
 function ProfileField({ label, value }) {
     return (
         <div className="border-b pb-2">
-            <span className="block text-green-800 font-semibold">{label}</span>
-            <span className="text-green-900">{value || "—"}</span>
+            <span className="block text-green-800 font-semibold text-sm sm:text-base">{label}</span>
+            <span className="text-green-900 text-sm sm:text-base">{value || "—"}</span>
         </div>
     );
 }
