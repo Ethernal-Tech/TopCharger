@@ -32,13 +32,15 @@ export default function MyChargers() {
             });
             if (!res.ok) throw new Error(`Failed to fetch chargers: ${res.status}`);
             const data = await res.json();
-            console.log("Raw chargers from backend:", data);
 
             const parsed =
-                Array.isArray(data) ? data :
-                    Array.isArray(data.chargers) ? data.chargers :
-                        Array.isArray(data.items) ? data.items :
-                            [];
+                Array.isArray(data)
+                    ? data
+                    : Array.isArray(data.chargers)
+                        ? data.chargers
+                        : Array.isArray(data.items)
+                            ? data.items
+                            : [];
 
             const sanitized = parsed.map((c) => ({
                 ...c,
@@ -105,16 +107,17 @@ export default function MyChargers() {
             ? [chargers[0].latitude, chargers[0].longitude]
             : [45.267136, 19.833549];
 
-    // ✅ Show full-screen loader like login (blue style)
+    // Full-screen loader like other pages
     if (loading) {
         return <FullScreenLoader />;
     }
 
-    // ❌ Error fallback
     if (error) {
         return (
-            <div className="min-h-screen flex items-center justify-center">
-                <div className="bg-white p-6 rounded-2xl shadow-md text-center">
+            <div className="min-h-screen flex items-center justify-center relative">
+                <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: "url('/bg-charger.png')" }}></div>
+                <div className="absolute inset-0 bg-gradient-to-b from-emerald-900/70 via-emerald-900/40 to-emerald-900/70"></div>
+                <div className="relative z-10 bg-white p-6 rounded-2xl shadow-md text-center">
                     <p className="text-red-600 font-semibold mb-4">Error: {error}</p>
                     <button
                         onClick={fetchChargers}
@@ -129,8 +132,9 @@ export default function MyChargers() {
 
     return (
         <div className="min-h-screen p-6 flex flex-col items-center relative overflow-hidden">
-            {/* Optional overlay for readability */}
-            <div className="absolute inset-0 bg-white/20 backdrop-blur-sm pointer-events-none"></div>
+            {/* Background overlay */}
+            <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: "url('/bg-charger.png')" }}></div>
+            <div className="absolute inset-0 bg-gradient-to-b from-emerald-900/70 via-emerald-900/40 to-emerald-900/70"></div>
 
             <div className="relative z-10 flex flex-col items-center w-full max-w-5xl">
                 <div className="bg-white p-6 rounded-2xl shadow-md w-full mb-8">
@@ -140,11 +144,50 @@ export default function MyChargers() {
                     <div className="bg-green-50 p-4 rounded mb-6">
                         <h2 className="text-lg font-semibold text-green-900 mb-2">Add New Charger</h2>
                         <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <input name="name" value={form.name} onChange={handleChange} placeholder="Charger Name" className="p-2 rounded border border-green-300" required />
-                            <input name="price" type="number" value={form.price} onChange={handleChange} placeholder="Price ($/kWh)" className="p-2 rounded border border-green-300" step="0.01" required />
-                            <input name="latitude" type="number" value={form.latitude} onChange={handleChange} placeholder="Latitude" className="p-2 rounded border border-green-300" step="0.0001" required />
-                            <input name="longitude" type="number" value={form.longitude} onChange={handleChange} placeholder="Longitude" className="p-2 rounded border border-green-300" step="0.0001" required />
-                            <select name="connector" value={form.connector} onChange={handleChange} className="p-2 rounded border border-green-300">
+                            <input
+                                name="name"
+                                value={form.name}
+                                onChange={handleChange}
+                                placeholder="Charger Name"
+                                className="p-2 rounded border border-green-300"
+                                required
+                            />
+                            <input
+                                name="price"
+                                type="number"
+                                value={form.price}
+                                onChange={handleChange}
+                                placeholder="Price ($/kWh)"
+                                className="p-2 rounded border border-green-300"
+                                step="0.01"
+                                required
+                            />
+                            <input
+                                name="latitude"
+                                type="number"
+                                value={form.latitude}
+                                onChange={handleChange}
+                                placeholder="Latitude"
+                                className="p-2 rounded border border-green-300"
+                                step="0.0001"
+                                required
+                            />
+                            <input
+                                name="longitude"
+                                type="number"
+                                value={form.longitude}
+                                onChange={handleChange}
+                                placeholder="Longitude"
+                                className="p-2 rounded border border-green-300"
+                                step="0.0001"
+                                required
+                            />
+                            <select
+                                name="connector"
+                                value={form.connector}
+                                onChange={handleChange}
+                                className="p-2 rounded border border-green-300"
+                            >
                                 <option value="TYPE2">Type2</option>
                                 <option value="CCS2">CCS2</option>
                                 <option value="CHADEMO">CHAdeMO</option>
@@ -152,7 +195,11 @@ export default function MyChargers() {
                                 <option value="NEMA14_50">NEMA 14-50</option>
                                 <option value="SCHUKO">Schuko</option>
                             </select>
-                            <button type="submit" disabled={adding} className="bg-green-700 text-white py-2 px-4 rounded hover:bg-green-800">
+                            <button
+                                type="submit"
+                                disabled={adding}
+                                className="bg-green-700 text-white py-2 px-4 rounded hover:bg-green-800"
+                            >
                                 {adding ? "Adding..." : "Add Charger"}
                             </button>
                         </form>
@@ -181,7 +228,7 @@ export default function MyChargers() {
                                             <br />
                                             Connector: {c.connector}
                                             <br />
-                                            Status: {c.available ? "✅ Available" : "❌ Occupied"}
+                                            Status: {c.available ? "Available" : "Occupied"}
                                         </Popup>
                                     </Marker>
                                 ) : null
@@ -214,7 +261,7 @@ export default function MyChargers() {
                                     <td className="p-3">{c.longitude}</td>
                                     <td className="p-3">${c.pricePerKwh}</td>
                                     <td className="p-3">{c.connector}</td>
-                                    <td className="p-3">{c.available ? "✅ Available" : "❌ Occupied"}</td>
+                                    <td className="p-3">{c.available ? "Available" : "Occupied"}</td>
                                 </tr>
                             ))}
                         </tbody>

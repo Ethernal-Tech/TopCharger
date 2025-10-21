@@ -24,11 +24,17 @@ export function AppRoutes() {
 
   if (loading) {
     return (
-      <div
-        className="min-h-screen flex items-center justify-center bg-cover bg-center"
-        style={{ backgroundImage: "url('/bg-charger.png')" }} // your default background
-      >
-        <div className="flex flex-col items-center gap-4">
+      <div className="min-h-screen relative flex items-center justify-center">
+        {/* Background image */}
+        <div
+          className="absolute inset-0 bg-cover bg-center"
+          style={{ backgroundImage: "url('/top_charger.png')" }}
+        ></div>
+        {/* Gradient overlay */}
+        <div className="absolute inset-0 bg-gradient-to-b from-emerald-900/70 via-emerald-900/40 to-emerald-900/70"></div>
+
+        {/* Loader */}
+        <div className="relative z-10 flex flex-col items-center gap-4">
           <div className="w-16 h-16 border-4 border-green-500 border-t-transparent rounded-full animate-spin"></div>
         </div>
       </div>

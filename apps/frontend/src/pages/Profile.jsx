@@ -46,11 +46,31 @@ export default function Profile() {
     }, []);
 
     if (loading) return <FullScreenLoader />;
-    if (error) return <div className="text-center text-red-500 mt-10">{error}</div>;
+
+    if (error) {
+        return (
+            <div className="min-h-screen relative flex items-center justify-center">
+                <div
+                    className="absolute inset-0 bg-cover bg-center"
+                    style={{ backgroundImage: "url('/top_charger.png')" }}
+                ></div>
+                <div className="absolute inset-0 bg-gradient-to-b from-emerald-900/70 via-emerald-900/40 to-emerald-900/70"></div>
+                <p className="relative z-10 text-red-500 p-6 bg-white/30 rounded">{error}</p>
+            </div>
+        );
+    }
 
     return (
-        <div className="min-h-screen flex items-center justify-center">
-            <div className="backdrop-blur-sm bg-white/90 p-10 rounded-2xl shadow-2xl w-full max-w-md">
+        <div className="min-h-screen relative flex items-center justify-center p-6">
+            {/* Background */}
+            <div
+                className="absolute inset-0 bg-cover bg-center"
+                style={{ backgroundImage: "url('/top_charger.png')" }}
+            ></div>
+            <div className="absolute inset-0 bg-gradient-to-b from-emerald-900/70 via-emerald-900/40 to-emerald-900/70"></div>
+
+            {/* Profile Card */}
+            <div className="relative z-10 backdrop-blur-sm bg-white/90 p-10 rounded-2xl shadow-2xl w-full max-w-md">
                 <div className="flex flex-col items-center mb-6">
                     <div className="bg-green-700 text-white p-4 rounded-full text-4xl mb-3 shadow">
                         👤

@@ -130,7 +130,6 @@ export default function Chargers() {
                     credentials: "include",
                 });
                 const dataActive = await resActive.json();
-                // Only set active session if it exists
                 if (dataActive && dataActive.id) {
                     setActiveSession(dataActive);
                     setProgress({ [dataActive.chargerId]: 0 });
@@ -220,93 +219,102 @@ export default function Chargers() {
         if (popup) popup.openPopup();
     };
 
-    if (!roleChecked) return <FullScreenLoader />;
-    if (loading) return <FullScreenLoader />;
+    if (!roleChecked || loading) {
+        return <FullScreenLoader />;
+    }
+
     if (error) return <p className="p-6 text-red-900">Error: {error}</p>;
 
     return (
-        <div className="min-h-screen bg-default-background flex flex-col p-6 gap-4">
-            {/* Top section: map + list */}
-            <div className="flex flex-col md:flex-row gap-4">
-                {/* Map */}
-                <div className="md:w-2/3 h-[50vh] rounded overflow-hidden shadow-lg">
-                    <MapContainer center={mapCenter} zoom={13} style={{ height: "100%", width: "100%" }}>
-                        <TileLayer
-                            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                            attribution="&copy; OpenStreetMap contributors"
-                        />
-                        {chargers.map((charger) => (
-                            <Marker
-                                key={charger.id || charger._id}
-                                position={[Number(charger.latitude), Number(charger.longitude)]}
-                                icon={charger.available ? greenIcon : redIcon}
-                                ref={(el) => {
-                                    if (el) popupRefs.current[charger.id || charger._id] = el.getPopup();
-                                }}
-                            >
-                                <Popup>
-                                    <strong>{charger.name}</strong>
-                                    <br />
-                                    Lat: {charger.latitude}, Lng: {charger.longitude}
-                                    <br />
-                                    Power: {charger.powerKw} kW
-                                    <br />
-                                    Price: {charger.pricePerKwh} €/kWh
-                                    <br />
-                                    Status: {charger.available ? "Available" : "Occupied"}
-                                </Popup>
-                            </Marker>
-                        ))}
-                        {selectedPosition && <FlyTo position={selectedPosition} />}
-                    </MapContainer>
-                </div>
+        <div className="min-h-screen relative flex flex-col p-6 gap-4">
+            {/* Background */}
+            <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: "url('/top_charger.png')" }}></div>
+            <div className="absolute inset-0 bg-gradient-to-b from-emerald-900/70 via-emerald-900/40 to-emerald-900/70"></div>
 
-                {/* Charger list */}
-                <div className="md:w-1/3 flex flex-col gap-4 overflow-y-auto p-4 max-h-[50vh] rounded shadow-lg bg-white/80">
-                    <h1 className="text-2xl font-bold mb-2">Nearby Chargers</h1>
-                    {chargers.map((charger) => (
-                        <ChargerCard
-                            key={charger.id || charger._id}
-                            charger={charger}
-                            onStart={startSession}
-                            onFlyTo={flyToCharger}
-                        />
-                    ))}
-                </div>
-            </div>
-
-            {/* Bottom section: active sessions */}
-            <div className="mt-4 p-4 rounded shadow-lg bg-white/80">
-                <h2 className="text-xl font-bold mb-2">Active Charging Session</h2>
-                {!activeSession ? (
-                    <p>No active session</p>
-                ) : (
-                    <div className="flex items-center justify-between p-2 bg-green-50 rounded mb-2">
-                        <div className="flex-1 mr-4">
-                            <span className="font-semibold">{activeSession.chargerNameSnapshot}</span>
-                            <br />
-                            <span>Charger ID: {activeSession.chargerId}</span>
-                            <br />
-                            <span>Driver ID: {activeSession.driverId}</span>
-                            <br />
-                            <span>Host ID: {activeSession.hostId}</span>
-                            <br />
-                            <span>Started at: {new Date(activeSession.startedAt).toLocaleString()}</span>
-                            <div className="w-full bg-gray-300 rounded h-3 mt-1">
-                                <div
-                                    className="bg-green-600 h-3 rounded"
-                                    style={{ width: `${progress[activeSession.chargerId] || 0}%` }}
-                                />
-                            </div>
-                        </div>
-                        <button
-                            className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700"
-                            onClick={() => stopSession(activeSession.id, activeSession.chargerId)}
-                        >
-                            Stop
-                        </button>
+            {/* Content */}
+            <div className="relative z-10 flex flex-col gap-4">
+                {/* Top section: map + list */}
+                <div className="flex flex-col md:flex-row gap-4">
+                    {/* Map */}
+                    <div className="md:w-[95%] h-[50vh] rounded overflow-hidden shadow-lg">
+                        <MapContainer center={mapCenter} zoom={13} style={{ height: "100%", width: "100%" }}>
+                            <TileLayer
+                                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                                attribution="&copy; OpenStreetMap contributors"
+                            />
+                            {chargers.map((charger) => (
+                                <Marker
+                                    key={charger.id || charger._id}
+                                    position={[Number(charger.latitude), Number(charger.longitude)]}
+                                    icon={charger.available ? greenIcon : redIcon}
+                                    ref={(el) => {
+                                        if (el) popupRefs.current[charger.id || charger._id] = el.getPopup();
+                                    }}
+                                >
+                                    <Popup>
+                                        <strong>{charger.name}</strong>
+                                        <br />
+                                        Lat: {charger.latitude}, Lng: {charger.longitude}
+                                        <br />
+                                        Power: {charger.powerKw} kW
+                                        <br />
+                                        Price: {charger.pricePerKwh} €/kWh
+                                        <br />
+                                        Status: {charger.available ? "Available" : "Occupied"}
+                                    </Popup>
+                                </Marker>
+                            ))}
+                            {selectedPosition && <FlyTo position={selectedPosition} />}
+                        </MapContainer>
                     </div>
-                )}
+
+                    {/* Charger list */}
+                    <div className="md:w-1/3 flex flex-col gap-4 overflow-y-auto p-4 max-h-[50vh] rounded shadow-lg bg-white/80">
+                        <h1 className="text-2xl font-bold mb-2">Nearby Chargers</h1>
+                        {chargers.map((charger) => (
+                            <ChargerCard
+                                key={charger.id || charger._id}
+                                charger={charger}
+                                onStart={startSession}
+                                onFlyTo={flyToCharger}
+                            />
+                        ))}
+                    </div>
+                </div>
+
+                {/* Bottom section: active sessions */}
+                <div className="mt-4 p-4 rounded shadow-lg bg-white/80">
+                    <h2 className="text-xl font-bold mb-2">Active Charging Session</h2>
+                    {!activeSession ? (
+                        <p>No active session</p>
+                    ) : (
+                        <div className="flex items-center justify-between p-2 bg-green-50 rounded mb-2">
+                            <div className="flex-1 mr-4">
+                                <span className="font-semibold">{activeSession.chargerNameSnapshot}</span>
+                                <br />
+                                <span>Charger ID: {activeSession.chargerId}</span>
+                                <br />
+                                <span>Driver ID: {activeSession.driverId}</span>
+                                <br />
+                                <span>Host ID: {activeSession.hostId}</span>
+                                <br />
+                                <span>Started at: {new Date(activeSession.startedAt).toLocaleString()}</span>
+                                <div className="w-full bg-gray-300 rounded h-3 mt-1">
+                                    <div
+                                        className="bg-green-600 h-3 rounded"
+                                        style={{ width: `${progress[activeSession.chargerId] || 0}%` }}
+                                    />
+                                </div>
+                            </div>
+                            <button
+                                className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700"
+                                onClick={() => stopSession(activeSession.id, activeSession.chargerId)}
+                            >
+                                Stop
+                            </button>
+                        </div>
+                    )}
+                </div>
             </div>
         </div>
     );
