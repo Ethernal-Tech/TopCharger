@@ -37,13 +37,13 @@ All charging data lives securely on **Solana**, ensuring transparency and trust 
 
 ## Local development
 
-1. ### Clone
+1. **Clone**
 ```bash
 git clone https://github.com/Ethernal-Tech/TopCharger.git
 cd TopCharger
 ```
 
-2. ### Env files
+2. **Env files**
 
 Create backend env: `apps/backend/.env`
 ```env
@@ -80,12 +80,12 @@ VITE_FRONTEND_URL="http://localhost:5173"
 Important Google OAuth redirect URIs (register in Google Cloud):
 - `http://localhost:3000/api/auth/callback/google`
 
-3. ### Start database
+3. **Start database**
 ```bash
 docker compose up -d
 ```
 
-4. ### Install and prepare
+4. **Install and prepare**
 
 Backend
 ```bash
@@ -101,7 +101,7 @@ Frontend
 npm --prefix apps/frontend ci
 ```
 
-5. ### Run apps
+5. **Run apps**
 
 Backend (dev)
 ```bash
@@ -113,7 +113,7 @@ Frontend (dev)
 npm --prefix apps/frontend run dev
 ```
 
-### Useful commands
+**Useful commands**
 - Prisma Studio: `npx prisma studio --schema apps/backend/prisma/schema.prisma`
 
 ---
