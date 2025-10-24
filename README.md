@@ -116,9 +116,4 @@ npm --prefix apps/frontend run dev
 **Useful commands**
 - Prisma Studio: `npx prisma studio --schema apps/backend/prisma/schema.prisma`
 
----
 
-
----
-
-License: MIT
