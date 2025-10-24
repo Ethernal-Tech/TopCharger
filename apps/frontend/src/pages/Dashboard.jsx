@@ -71,13 +71,6 @@ export default function Dashboard() {
                     <span className="font-extrabold text-emerald-300">everywhere</span>.
                 </p>
 
-                {/* Trio section */}
-                <div className="flex flex-col sm:flex-row justify-between w-full mb-8 sm:mb-12 gap-y-2 sm:gap-x-12 text-slate-100 font-semibold text-lg sm:text-xl md:text-2xl px-2 sm:px-0">
-                    <div className="text-left">Anyone can host</div>
-                    <div className="text-center">Find &amp; plug in</div>
-                    <div className="text-right">Pay in one app</div>
-                </div>
-
                 {/* Buttons */}
                 <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto items-center justify-center">
                     <button
