@@ -127,7 +127,7 @@ sequenceDiagram
 ```
 </details>
 
-### Start Charging Session
+### Stop Charging Session
 <details>
 <summary>View Diagram</summary>
 
