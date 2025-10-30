@@ -1,11 +1,12 @@
 # TopCharger
-We’re building an **open**, **on-chain** network where *anyone* — homeowners, hotels, gas stations —  can host a charger, and anyone can charge without special cards or memberships.
-Our app finds the **best charger for you** based on what matters most:
-**Closest, Cheapest, Fastest, Greenest, or Most Reliable**.
-You can even **book your spot ahead** and skip the wait entirely.
-**Hosts earn rewards** for uptime, using renewable energy, and providing services in underserved areas,  while **drivers earn points** for feedback and loyalty.
-Payments are **smooth**, onboarding is **instant** — no passwords, no hassles.
-All charging data lives securely on **Solana**, ensuring transparency and trust for users, cities, and utilities alike.
+We’re building an **open**, **on-chain** network where *anyone* — homeowners, hotels, gas stations — can host a charger, and anyone can charge without special cards or memberships.
+
+Our app finds the **best charger for you** based on what matters most: **Closest, Cheapest, Fastest, Greenest, or Most Reliable**. You can even **book your spot ahead** and skip the wait entirely.
+
+**Hosts earn rewards** for uptime, using renewable energy, and supporting underserved areas. **Drivers earn points** for feedback and loyalty — turning good behavior into real benefits.
+
+Payments are **smooth**, onboarding is **instant**, and the experience is **frictionless** — no passwords, no cards, no confusion. All charging data is stored securely on **Solana**, ensuring transparency and trust for drivers, hosts, cities, and utilities alike.
+
 
 ---
 ## Features
@@ -18,7 +19,7 @@ All charging data lives securely on **Solana**, ensuring transparency and trust 
 - **Community-driven energy economy** with on-chain verifiability 
 > :warning: Some features are under development and may be listed here for planning purposes.
 ---
-## 👥 User Roles
+## User Roles
 
 ### **Host**
 - Add and manage charging stations  
@@ -34,6 +35,126 @@ All charging data lives securely on **Solana**, ensuring transparency and trust 
 - Earn loyalty points and provide feedback  
 
 ---
+
+## TopCharger System Flows (Solana Devnet)
+
+The TopCharger on-chain program runs on **Solana devnet**. Diagrams below reflect the current API + on-chain flows.
+
+---
+
+### Register User (Driver or Host)
+
+<details>
+<summary>View Diagram</summary>
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant FE as Frontend (App)
+    participant API as Backend (Next.js)
+    participant DB as PostgreSQL
+    participant RPC as Solana RPC (devnet)
+    participant PROG as TopCharger Program (devnet)
+
+    %% Register user (role = DRIVER | HOST)
+    FE->>API: POST /api/\{role\}/profile
+    API->>DB: upsert \{role\}Profile
+    alt first-time \{role\}
+        API->>RPC: register_user(role)
+        RPC->>PROG: invoke register_user
+        PROG-->>RPC: userPda, signature
+        RPC-->>API: userPda, signature
+        API->>DB: save solanaUserPda, solanaRegisterTx
+    end
+    API-->>FE: 201 \{role\}
+```
+</details>
+
+### Register Charger (Host only)
+
+<details>
+<summary>View Diagram</summary>
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant FE as Frontend (App)
+    participant API as Backend (Next.js)
+    participant DB as PostgreSQL
+    participant RPC as Solana RPC (devnet)
+    participant PROG as TopCharger Program (devnet)
+
+    FE->>API: POST /api/hosts/chargers
+    API->>DB: create Charger (Web2)
+    alt first-time chain sync
+        API->>RPC: create_charger(...)
+        RPC->>PROG: invoke create_charger
+        PROG-->>RPC: chargerPda, signature
+        RPC-->>API: chargerPda, signature
+        API->>DB: update charger (pda + tx)
+    end
+    API-->>FE: 201 created
+```
+</details>
+
+### Start Charging Session
+<details>
+<summary>View Diagram</summary>
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant FE as Frontend (App)
+    participant API as Backend (Next.js)
+    participant DB as PostgreSQL
+    participant RPC as Solana RPC (devnet)
+    participant PROG as TopCharger Program (devnet)
+
+    FE->>API: POST /api/chargers/:id/start
+    API->>API: requireDriverContext()
+    API->>DB: get Charger by id (exists & available?)
+    API->>DB: ensure no ACTIVE (driver & charger)
+    API->>DB: tx: create ChargingSession(ACTIVE) + set charger.available=false
+    alt charger has solanaChargerPda
+        API->>API: matchId32 = hash32(session.id)
+        API->>RPC: reserve_charger(matchId32, chargerPda)
+        RPC->>PROG: invoke reserve_charger
+        PROG-->>RPC: matchPda, signature
+        RPC-->>API: matchPda, signature
+        API->>DB: save solanaMatchPda, startTxSig
+    end
+    API-->>FE: 201 created { session }
+```
+</details>
+
+### Start Charging Session
+<details>
+<summary>View Diagram</summary>
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant FE as Frontend (App)
+    participant API as Backend (Next.js)
+    participant DB as PostgreSQL
+    participant RPC as Solana RPC (devnet)
+    participant PROG as TopCharger Program (devnet)
+
+    FE->>API: POST /api/sessions/:id/stop
+    API->>API: requireDriverContext()
+    API->>DB: get Session by id (belongs to driver & ACTIVE?)
+    API->>API: compute hours, energyKwh, costTotal
+    API->>DB: tx: update Session(STOPPED, metrics) + set charger.available=true
+    alt has solanaMatchPda & chargerPda
+        API->>RPC: confirm_charge(matchPda, chargerPda, wasCorrect=true)
+        RPC->>PROG: invoke confirm_charge
+        PROG-->>RPC: signature
+        RPC-->>API: signature
+        API->>DB: save stopTxSig
+    end
+    API-->>FE: 200 ok { session }
+```
+</details>
 
 ## Local development
 
