@@ -3,13 +3,14 @@ import NextAuth, { type NextAuthOptions } from "next-auth";
 import Google from "next-auth/providers/google";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import { prisma } from "@/lib/db";
+import Credentials from "next-auth/providers/credentials";
 
 const FRONTEND = process.env.VITE_FRONTEND_URL || "http://localhost:5173"; // your frontend URL
 
 export const authOptions: NextAuthOptions = {
   pages: {
-    signIn: '/auth/signin', // Specify your custom sign-in page route here
-    signOut: '/auth/signout',
+    signIn: "/auth/signin", // Specify your custom sign-in page route here
+    signOut: "/auth/signout",
   },
   adapter: PrismaAdapter(prisma),
   session: { strategy: "jwt" },
@@ -18,6 +19,21 @@ export const authOptions: NextAuthOptions = {
       clientId: process.env.GOOGLE_CLIENT_ID || "",
       clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
       allowDangerousEmailAccountLinking: true,
+    }),
+    Credentials({
+      id: "siws",
+      name: "Sign in with Solana",
+      credentials: {
+        userId: { label: "User ID", type: "text" },
+        publicKey: { label: "Public Key", type: "text" },
+      },
+      async authorize(creds) {
+        if (!creds?.userId || !creds?.publicKey) return null;
+        const user = await prisma.user.findUnique({
+          where: { id: String(creds.userId) },
+        });
+        return user ? ({ id: String(user.id) } as any) : null;
+      },
     }),
   ],
   callbacks: {
