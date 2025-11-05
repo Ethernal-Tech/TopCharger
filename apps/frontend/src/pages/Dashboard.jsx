@@ -1,11 +1,10 @@
+// apps/frontend/src/pages/Dashboard.jsx
 import React, { useEffect, useState } from "react";
 import { getMagic } from "@/lib/magic";
-import EmailMagicModal from "@/components/EmailMagicModal";
 
 export default function Dashboard() {
   const [loading, setLoading] = useState(true);
-  const [showMagic, setShowMagic] = useState(false);
-  const [magicBusy, setMagicBusy] = useState(false);
+  const backend = import.meta.env.VITE_BACKEND_URL || "http://localhost:3000";
 
   useEffect(() => {
     const token = sessionStorage.getItem("tc_token");
@@ -19,40 +18,36 @@ export default function Dashboard() {
     }
   }, []);
 
+  // Google login → NextAuth signin page with callback back to FE
   const handleGoogleLogin = () => {
     const callbackUrl = `${window.location.origin}/auth/callback`;
-    const backend = import.meta.env.VITE_BACKEND_URL || "http://localhost:3000";
     window.location.href = `${backend}/auth/signin?callbackUrl=${encodeURIComponent(
       callbackUrl
     )}`;
   };
 
-  // the actual Magic flow (reused by the modal)
-  const runMagicFlow = async (email) => {
+  // Magic login via Connect UI (auto-creates embedded wallet)
+  // Dashboard.jsx (only the Magic handler)
+  const handleMagicLogin = async () => {
     try {
-      setMagicBusy(true);
-
       const magic = getMagic();
       if (!magic) {
-        alert(
-          "Magic is not configured. Check your VITE_MAGIC_PUBLISHABLE_KEY."
-        );
+        alert("Magic is not configured. Check VITE_MAGIC_PUBLISHABLE_KEY.");
         return;
       }
 
-      // 1) Start magic link
-      await magic.auth.loginWithMagicLink({ email });
+      // 1) Open Magic's built-in login UI (creates embedded wallet if first time)
+      await magic.wallet.connectWithUI();
 
-      // 2) CSRF for NextAuth
+      // 2) Get CSRF for NextAuth
       const csrfRes = await fetch("/api/auth/csrf", { credentials: "include" });
       if (!csrfRes.ok) throw new Error("CSRF fetch failed");
-
       const { csrfToken } = await csrfRes.json();
 
-      // 3) DID token
+      // 3) Get Magic DID token
       const did = await magic.user.getIdToken({ lifespan: 300 });
 
-      // 4) Call NextAuth credentials provider ("magic")
+      // 4) Tell NextAuth to create a session via the "magic" credentials provider
       const body = new URLSearchParams({
         csrfToken,
         callbackUrl: `${window.location.origin}/auth/callback`,
@@ -72,17 +67,15 @@ export default function Dashboard() {
         throw new Error(`Magic callback failed (${res.status}) ${t}`);
       }
 
-      // success → let the callback bootstrap
+      // 5) Now you have a NextAuth session cookie; finish bootstrap
       window.location.href = "/auth/callback";
     } catch (e) {
-      console.error("[FE] Magic login failed", e);
-      alert(e?.message || "Magic login failed.");
-    } finally {
-      setMagicBusy(false);
-      setShowMagic(false);
+      console.error("[FE] Magic connect flow failed", e);
+      alert(e?.message || "Login failed. Please try again.");
     }
   };
 
+  // Optional: plain Phantom connect (independent of Magic)
   const handleWalletLogin = () => {
     if (window.solana?.isPhantom) {
       window.solana
@@ -133,7 +126,7 @@ export default function Dashboard() {
           </button>
 
           <button
-            onClick={() => setShowMagic(true)}
+            onClick={handleMagicLogin}
             className="w-full px-6 py-3 rounded-lg shadow bg-white/10 border border-white/30 text-white hover:bg-white/15 transition"
           >
             Login with Email (Magic)
@@ -143,17 +136,10 @@ export default function Dashboard() {
             onClick={handleWalletLogin}
             className="w-full px-6 py-3 rounded-lg shadow bg-white/10 border border-white/30 text-white hover:bg-white/15 transition"
           >
-            Connect Wallet
+            Connect Wallet (Phantom)
           </button>
         </div>
       </div>
-
-      <EmailMagicModal
-        open={showMagic}
-        busy={magicBusy}
-        onClose={() => (!magicBusy ? setShowMagic(false) : null)}
-        onSubmit={runMagicFlow}
-      />
     </div>
   );
 }

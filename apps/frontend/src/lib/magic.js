@@ -3,6 +3,10 @@ import { Magic } from "magic-sdk";
 
 let magic = null;
 
+/**
+ * Singleton Magic instance for Solana embedded wallet
+ * Requires: VITE_MAGIC_PUBLISHABLE_KEY
+ */
 export function getMagic() {
   if (typeof window === "undefined") return null;
   if (magic) return magic;
@@ -13,8 +17,29 @@ export function getMagic() {
     return null;
   }
 
-  console.log(`[Magic] init key=${String(key).slice(0, 6)}…`);
+  // ✅ Embedded Solana Wallet Configuration
+  magic = new Magic(key, {
+    network: {
+      rpcUrl: "https://api.devnet.solana.com",
+      chainId: 101, // Solana Devnet
+    },
+  });
 
-  magic = new Magic(key); 
   return magic;
+}
+
+/**
+ * Get Magic embedded wallet Solana public address
+ */
+export async function getSolanaPublicAddress() {
+  const m = getMagic();
+  if (!m) return null;
+
+  try {
+    const info = await m.user.getInfo();
+    return info.publicAddress ?? null;
+  } catch (err) {
+    console.warn("[Magic] No pubkey", err);
+    return null;
+  }
 }

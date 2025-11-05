@@ -15,24 +15,26 @@ export default function AuthCallback() {
 
     (async () => {
       try {
-        // 1) Get JWT from backend (stored as cookie server-side; we just keep a copy)
+        // 1) Get token from backend (NextAuth cookie → JWT)
         const tokenRes = await fetch(`/api/auth/token`, {
+          method: "GET",
           credentials: "include",
         });
         if (!tokenRes.ok) throw new Error("Failed to get token");
         const { token } = await tokenRes.json();
         sessionStorage.setItem("tc_token", token);
 
-        // 2) Get current user/session
-        const meRes = await fetch(`/api/auth/me`, { credentials: "include" });
+        // 2) Get user
+        const meRes = await fetch(`/api/auth/me`, {
+          method: "GET",
+          credentials: "include",
+        });
         if (!meRes.ok) throw new Error("Failed to get user info");
         const { user } = await meRes.json();
-
-        // 3) Cache user + role locally
         sessionStorage.setItem("tc_user", JSON.stringify(user));
         sessionStorage.setItem("tc_role", user.role);
 
-        // 4) Route by role
+        // 3) Route by role
         switch (user.role) {
           case "UNSET":
             navigate("/select-role", { replace: true });

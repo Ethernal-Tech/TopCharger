@@ -1,95 +1,70 @@
-import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-
-const BACKEND = import.meta.env.VITE_BACKEND_URL;
-const FRONTEND = import.meta.env.VITE_FRONTEND_URL || "http://localhost:5173";
+import { useAuth } from "@/context/UseAuth";
+import ViewWalletButton from "@/components/ViewWalletButton";
 
 export default function Navbar() {
-    const navigate = useNavigate();
+  const navigate = useNavigate();
+  const { user, role, loading } = useAuth();
 
-    const [walletAddress, setWalletAddress] = useState(null);
-    const [googleToken] = useState(() => sessionStorage.getItem("tc_token"));
-    const [role] = useState(() => {
-        const userStr = sessionStorage.getItem("tc_user");
-        if (!userStr) return null;
-        try {
-            const user = JSON.parse(userStr);
-            return user.role || null;
-        } catch {
-            return null;
-        }
-    });
+  const handleLogout = () => {
+    navigate("/logout");
+  };
 
-    useEffect(() => {
-        if (!googleToken) navigate("/");
-    }, [googleToken, navigate]);
+  if (loading || !user) return null; // no flicker
 
-    const handleWalletDisconnect = async () => {
-        setWalletAddress(null);
-        if (window.solana) await window.solana.disconnect();
-    };
+  return (
+    <nav className="w-full bg-white/90 backdrop-blur-md shadow-md px-4 sm:px-8 py-3 flex items-center justify-between z-50 relative">
+      {/* Logo */}
+      <div
+        className="flex items-center gap-3 cursor-pointer"
+        onClick={() => navigate("/")}
+      >
+        <img
+          src="/logo-modified.png"
+          alt="TopCharger Logo"
+          className="h-12 w-12 object-contain"
+        />
+        <h1 className="text-2xl font-bold text-green-900">TopCharger</h1>
+      </div>
 
-    const handleGoogleLogout = async () => {
-        navigate("/logout");
-    };
+      {/* Navigation links */}
+      <div className="flex items-center gap-6 text-green-800 font-medium">
+        {role === "HOST" && (
+          <Link className="hover:text-green-600 transition" to="/my-chargers">
+            My Chargers
+          </Link>
+        )}
+        {role === "DRIVER" && (
+          <Link className="hover:text-green-600 transition" to="/chargers">
+            Find Chargers
+          </Link>
+        )}
 
-    return (
-        <nav className="w-full bg-white/90 backdrop-blur-md shadow-md px-4 sm:px-8 py-3 flex items-center justify-between">
-            {/* Left: Logo + Links */}
-            <div className="flex items-center gap-6 flex-wrap">
-                <div className="flex items-center gap-3 flex-shrink-0">
-                    <img
-                        src="/logo-modified.png"
-                        alt="TopCharger Logo"
-                        className="h-12 w-12 object-contain"
-                    />
-                    <h1 className="text-2xl font-bold text-green-900">TopCharger</h1>
-                </div>
+        {(role === "HOST" || role === "DRIVER") && (
+          <>
+            <Link className="hover:text-green-600 transition" to="/sessions">
+              Sessions
+            </Link>
+            <Link className="hover:text-green-600 transition" to="/profile">
+              Profile
+            </Link>
+          </>
+        )}
+      </div>
 
-                {/* Links */}
-                <div className="flex flex-wrap gap-4 text-green-800 font-medium">
-                    {googleToken && role === "HOST" && (
-                        <Link to="/my-chargers" className="hover:text-green-600 transition">
-                            My Chargers
-                        </Link>
-                    )}
-                    {googleToken && role === "DRIVER" && (
-                        <Link to="/chargers" className="hover:text-green-600 transition">
-                            Find Chargers
-                        </Link>
-                    )}
-                    {googleToken && (role === "HOST" || role === "DRIVER") && (
-                        <Link to="/sessions" className="hover:text-green-600 transition">
-                            Charger sessions
-                        </Link>
-                    )}
-                    {googleToken && (role === "HOST" || role === "DRIVER") && (
-                        <Link to="/profile" className="hover:text-green-600 transition">
-                            Profile
-                        </Link>
-                    )}
-                </div>
-            </div>
+      {/* Actions */}
+      <div className="flex items-center gap-4">
+        {/* View Wallet (Magic Embedded Wallet UI) */}
+        <ViewWalletButton />
 
-            {/* Right: Buttons */}
-            <div className="flex items-center gap-4 flex-wrap">
-                {walletAddress && (
-                    <button
-                        onClick={handleWalletDisconnect}
-                        className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
-                    >
-                        Disconnect Wallet
-                    </button>
-                )}
-                {googleToken && !walletAddress && (
-                    <button
-                        onClick={handleGoogleLogout}
-                        className="bg-green-700 text-white px-4 py-2 rounded hover:bg-green-800"
-                    >
-                        Logout
-                    </button>
-                )}
-            </div>
-        </nav>
-    );
+        {/* Logout */}
+        <button
+          onClick={handleLogout}
+          className="bg-green-700 text-white px-4 py-2 rounded-lg hover:bg-green-800 transition"
+        >
+          Logout
+        </button>
+      </div>
+    </nav>
+  );
 }
