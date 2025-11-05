@@ -1,82 +1,62 @@
+// apps/frontend/src/pages/AuthCallback.jsx
 import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import FullScreenLoader from "../components/FullScreenLoader.jsx";
 
-const BACKEND = import.meta.env.VITE_BACKEND_URL;
-
 export default function AuthCallback() {
-    const [loading, setLoading] = useState(true); // Loading spinner
-    const [error, setError] = useState(null);     // Optional error
-    const navigate = useNavigate();
-    const ranRef = useRef(false);                 // Prevent double effect
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const navigate = useNavigate();
+  const ranRef = useRef(false);
 
-    useEffect(() => {
-        if (ranRef.current) return;
-        ranRef.current = true;
+  useEffect(() => {
+    if (ranRef.current) return;
+    ranRef.current = true;
 
-        const fetchUser = async () => {
-            try {
-                // Fetch token from backend
-                const tokenRes = await fetch(`${BACKEND}/api/auth/token`, {
-                    method: "GET",
-                    credentials: "include",
-                });
+    (async () => {
+      try {
+        // 1) Get JWT from backend (stored as cookie server-side; we just keep a copy)
+        const tokenRes = await fetch(`/api/auth/token`, {
+          credentials: "include",
+        });
+        if (!tokenRes.ok) throw new Error("Failed to get token");
+        const { token } = await tokenRes.json();
+        sessionStorage.setItem("tc_token", token);
 
-                if (!tokenRes.ok) throw new Error("Failed to get token");
+        // 2) Get current user/session
+        const meRes = await fetch(`/api/auth/me`, { credentials: "include" });
+        if (!meRes.ok) throw new Error("Failed to get user info");
+        const { user } = await meRes.json();
 
-                const { token } = await tokenRes.json();
-                sessionStorage.setItem("tc_token", token);
+        // 3) Cache user + role locally
+        sessionStorage.setItem("tc_user", JSON.stringify(user));
+        sessionStorage.setItem("tc_role", user.role);
 
-                // Fetch user info
-                const meRes = await fetch(`${BACKEND}/api/auth/me`, {
-                    method: "GET",
-                    credentials: "include",
-                });
+        // 4) Route by role
+        switch (user.role) {
+          case "UNSET":
+            navigate("/select-role", { replace: true });
+            break;
+          case "HOST":
+            navigate("/my-chargers", { replace: true });
+            break;
+          case "DRIVER":
+            navigate("/chargers", { replace: true });
+            break;
+          default:
+            navigate("/", { replace: true });
+        }
+      } catch (err) {
+        console.error("Auth callback error:", err);
+        setError(err.message || "Unknown error");
+        navigate("/", { replace: true });
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [navigate]);
 
-                if (!meRes.ok) throw new Error("Failed to get user info");
-
-                const { user } = await meRes.json();
-                sessionStorage.setItem("tc_user", JSON.stringify(user));
-                sessionStorage.setItem("tc_role", user.role);
-
-                // Navigate based on role
-                switch (user.role) {
-                    case "UNSET":
-                        navigate("/select-role", { replace: true });
-                        break;
-                    case "HOST":
-                        navigate("/my-chargers", { replace: true });
-                        break;
-                    case "DRIVER":
-                        navigate("/chargers", { replace: true });
-                        break;
-                    default:
-                        navigate("/", { replace: true });
-                }
-            } catch (err) {
-                console.error("Auth callback error:", err);
-                setError(err.message || "Unknown error");
-                navigate("/", { replace: true });
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchUser();
-    }, [navigate]);
-
-    // Show spinner while fetching
-    if (loading) return <FullScreenLoader />;
-
-    // Optionally show error if needed
-    if (error) {
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-red-100">
-                <p className="text-red-900 font-semibold">{error}</p>
-            </div>
-        );
-    }
-
-    // Never render anything else; redirect happens automatically
-    return null;
+  if (loading) return <FullScreenLoader />;
+  if (error) return null;
+  return null;
 }
