@@ -9,6 +9,7 @@ export default function Navbar() {
   const navigate = useNavigate();
   const [walletAddress, setWalletAddress] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
+  const [connecting, setConnecting] = useState(false);
 
   const [googleToken] = useState(() => sessionStorage.getItem("tc_token"));
   const [role] = useState(() => {
@@ -50,6 +51,27 @@ export default function Navbar() {
     loadLinkedWallets();
   }, [loadLinkedWallets]);
 
+  const tryFastReconnect = async () => {
+    setConnecting(true);
+    try {
+      const res = await fetch(`${BACKEND}/api/auth/link/solana/refresh`, {
+        method: "GET",
+        credentials: "include",
+      });
+      if (res.ok) {
+        const { publicKey } = await res.json();
+        setWalletAddress(publicKey);
+        sessionStorage.setItem("tc_wallet", publicKey);
+        return true;
+      }
+      return false;
+    } catch {
+      return false;
+    } finally {
+      setConnecting(false);
+    }
+  };
+
   const handleWalletDisconnect = async () => {
     setWalletAddress(null);
     sessionStorage.removeItem("tc_wallet");
@@ -58,6 +80,12 @@ export default function Navbar() {
         await window.solana.disconnect();
       } catch {}
     }
+  };
+
+  const handleConnectClick = async () => {
+    // First try 5-minute fast path (no chooser, no signing)
+    const ok = await tryFastReconnect();
+    if (!ok) setModalOpen(true);
   };
 
   const handleGoogleLogout = async () => {
@@ -109,10 +137,11 @@ export default function Navbar() {
         <div className="flex items-center gap-4 flex-wrap">
           {googleToken && !walletAddress && (
             <button
-              onClick={() => setModalOpen(true)}
-              className="bg-emerald-600 text-white px-4 py-2 rounded hover:bg-emerald-700"
+              onClick={handleConnectClick}
+              className="bg-emerald-600 text-white px-4 py-2 rounded hover:bg-emerald-700 disabled:opacity-60"
+              disabled={connecting}             
             >
-              Connect Wallet
+             {connecting ? "Connecting…" : "Connect Wallet"}
             </button>
           )}
 
