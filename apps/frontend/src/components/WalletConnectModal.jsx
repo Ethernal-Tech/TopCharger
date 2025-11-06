@@ -1,3 +1,4 @@
+// apps/frontend/src/components/WalletConnectModal.jsx
 import { useEffect, useState } from "react";
 import { detectWallets, connectAndSignMessage } from "../utils/solanaWallet";
 
@@ -12,74 +13,49 @@ export default function WalletConnectModal({ open, onClose, onLinked }) {
   useEffect(() => {
     if (!open) return;
     setError("");
-    setLoadingId(null);
-    setWallets(detectWallets());
+    setLoadingId(null); // reset any previous state
+    setWallets(detectWallets()); // (re)detect wallets
   }, [open]);
-
-  const linkWith = async (wallet) => {
-    setError("");
-    setBusy(true);
-    try {
-      // nonce
-      const nonceRes = await fetch(`${BACKEND}/api/auth/siws/nonce`, {
-        credentials: "include",
-      });
-      if (!nonceRes.ok) throw new Error("Failed to get nonce");
-      const { nonce } = await nonceRes.json();
-
-      const domain = new URL(FRONTEND).host;
-      const message = `Link wallet to TopCharger\nDomain: ${domain}\nNonce: ${nonce}\nIssuedAt: ${new Date().toISOString()}`;
-
-      const { publicKey, signatureB58 } = await connectAndSignMessage({
-        provider: wallet.provider,
-        messageUtf8: message,
-      });
-
-      // link
-      const linkRes = await fetch(`${BACKEND}/api/auth/link/solana`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ publicKey, message, signature }),
-      }).catch(() => null);
-
-      // NOTE: variable `signature` not defined. Fix:
-    } catch (e) {
-      // handled below with corrected code
-    }
-  };
 
   const linkProvider = async (wallet) => {
     setError("");
     setLoadingId(wallet.id);
     try {
+      // 1) nonce
       const nonceRes = await fetch(`${BACKEND}/api/auth/siws/nonce`, {
         credentials: "include",
       });
       if (!nonceRes.ok) throw new Error("Failed to get nonce");
       const { nonce } = await nonceRes.json();
 
+      // 2) SIWS-style message
       const domain = new URL(FRONTEND).host;
-      const message = `Link wallet to TopCharger\nDomain: ${domain}\nNonce: ${nonce}\nIssuedAt: ${new Date().toISOString()}`;
+      const message =
+        `Link wallet to TopCharger\n` +
+        `Domain: ${domain}\n` +
+        `Nonce: ${nonce}\n` +
+        `IssuedAt: ${new Date().toISOString()}`;
 
+      // 3) connect + sign
       const { publicKey, signatureB58 } = await connectAndSignMessage({
         provider: wallet.provider,
         messageUtf8: message,
       });
 
+      // 4) link on backend
       const linkRes = await fetch(`${BACKEND}/api/auth/link/solana`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ publicKey, message, signature: signatureB58 }),
       });
-
       if (!linkRes.ok) {
         const t = await linkRes.text();
         throw new Error(t || "Failed to link wallet");
       }
 
       onLinked?.(publicKey);
+      setLoadingId(null);
       onClose?.();
     } catch (e) {
       setError(e.message || "Failed to link wallet");
@@ -114,7 +90,7 @@ export default function WalletConnectModal({ open, onClose, onLinked }) {
               <button
                 key={w.id}
                 onClick={() => linkProvider(w)}
-                disabled={!!loadingId} // prevent double-clicking another wallet mid-flow
+                disabled={!!loadingId} // block switching while one is in-flight
                 className={`flex items-center justify-between border rounded-lg px-4 py-3 hover:bg-green-50 ${
                   !!loadingId && !isLoading
                     ? "opacity-60 cursor-not-allowed"
@@ -138,9 +114,9 @@ export default function WalletConnectModal({ open, onClose, onLinked }) {
 
         <div className="flex justify-end gap-2">
           <button
-            onClick={onClose}
-            disabled={busy}
-            className="px-4 py-2 rounded bg-gray-100 hover:bg-gray-200"
+            onClick={() => (!loadingId ? onClose?.() : null)}
+            disabled={!!loadingId}
+            className="px-4 py-2 rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-60"
           >
             Close
           </button>
