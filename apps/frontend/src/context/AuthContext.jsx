@@ -6,28 +6,32 @@ import { detectWallets, connectAndSignMessage } from "../utils/solanaWallet";
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null); // { id, email, role }
-  const [role, setRole] = useState(null);
-  const [wallet, setWallet] = useState(null); // publicKey string
-  const [loading, setLoading] = useState(true);
-  const [walletSync, setWalletSync] = useState(false);
+  const [user, setUser] = useState(null);           // { id, email, role }
+  const [role, setRole] = useState(null);           // "HOST" | "DRIVER" | "UNSET" | null
+  const [wallet, setWallet] = useState(null);       // connected wallet pubkey (runtime only)
+  const [loading, setLoading] = useState(true);     // initial app load
+  const [walletSync, setWalletSync] = useState(false); // button spinner while trying fast-reconnect
 
-  // ✅ Fetch Google auth session + user
+  // -------------------------
+  // Auth bootstrap
+  // -------------------------
   const loadAuth = useCallback(async () => {
     try {
-      const tokenRes = await fetch(`${BACKEND}/api/auth/token`, {
+      // Establish session cookie and get a short token for FE usage if needed
+      const tok = await fetch(`${BACKEND}/api/auth/token`, {
         credentials: "include",
       });
-      if (!tokenRes.ok) throw new Error("No session");
-      const { token } = await tokenRes.json();
+      if (!tok.ok) throw new Error("No session");
+      const { token } = await tok.json();
       sessionStorage.setItem("tc_token", token);
 
-      const userRes = await fetch(`${BACKEND}/api/auth/me`, {
+      // Get user (includes role)
+      const me = await fetch(`${BACKEND}/api/auth/me`, {
         credentials: "include",
       });
-      if (!userRes.ok) throw new Error("Failed user load");
+      if (!me.ok) throw new Error("Failed user load");
 
-      const { user } = await userRes.json();
+      const { user } = await me.json();
       setUser(user);
       setRole(user.role);
       sessionStorage.setItem("tc_user", JSON.stringify(user));
@@ -38,35 +42,47 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
-  // ✅ Load linked wallets from backend
+  // Optional helper for pages that want the LIST of linked wallets.
+  // IMPORTANT: We do NOT set `wallet` here—linked ≠ connected.
   const loadWallet = useCallback(async () => {
     try {
       const res = await fetch(`${BACKEND}/api/auth/wallets`, {
         method: "GET",
         credentials: "include",
       });
-      if (!res.ok) return;
+      if (!res.ok) return [];
       const { wallets } = await res.json();
-      const pk =
-        Array.isArray(wallets) && wallets.length > 0 ? wallets[0] : null;
-      setWallet(pk);
-      if (pk) sessionStorage.setItem("tc_wallet", pk);
-      else sessionStorage.removeItem("tc_wallet");
+      return Array.isArray(wallets) ? wallets : [];
     } catch {
-      setWallet(null);
+      return [];
     }
   }, []);
 
-  // ✅ First load
+  // First boot
   useEffect(() => {
     (async () => {
       await loadAuth();
-      await loadWallet();
       setLoading(false);
     })();
-  }, [loadAuth, loadWallet]);
+  }, [loadAuth]);
 
-  // ✅ Fast non-signing reconnect (5 min cookie)
+  // Listen for wallet-link events fired by the modal (and for unlinks)
+  useEffect(() => {
+    const onLinked = (e) => setWallet(e?.detail?.publicKey || null);
+    const onUnlinked = () => setWallet(null);
+    window.addEventListener("tc-wallet-linked", onLinked);
+    window.addEventListener("tc-wallet-unlinked", onUnlinked);
+    return () => {
+      window.removeEventListener("tc-wallet-linked", onLinked);
+      window.removeEventListener("tc-wallet-unlinked", onUnlinked);
+    };
+  }, []);
+
+  // -------------------------
+  // Wallet helpers
+  // -------------------------
+
+  // Fast path (cookie-based) reconnect without re-signing
   const tryFastReconnect = useCallback(async () => {
     if (!user) return false;
     setWalletSync(true);
@@ -77,18 +93,18 @@ export const AuthProvider = ({ children }) => {
       if (res.ok) {
         const { publicKey } = await res.json();
         setWallet(publicKey);
-        sessionStorage.setItem("tc_wallet", publicKey);
         return true;
       }
     } catch {
+      // ignore
     } finally {
       setWalletSync(false);
     }
     return false;
   }, [user]);
 
-  // ✅ Connect wallet (show modal handled in UI)
-  const connectWallet = async (provider, nonce, domain, message) => {
+  // Full connect + link flow (the modal will call this)
+  const connectWallet = async (provider, _nonce, _domain, message) => {
     const { publicKey, signatureB58 } = await connectAndSignMessage({
       provider,
       messageUtf8: message,
@@ -103,19 +119,28 @@ export const AuthProvider = ({ children }) => {
     if (!linkRes.ok) throw new Error(await linkRes.text());
 
     setWallet(publicKey);
-    sessionStorage.setItem("tc_wallet", publicKey);
     return publicKey;
   };
 
-  // ✅ Disconnect wallet (keep auth session alive)
+  // Disconnect wallet locally + clear the short-lived fast-reconnect cookie
   const disconnectWallet = async () => {
     setWallet(null);
-    sessionStorage.removeItem("tc_wallet");
     try {
       if (window.solana?.disconnect) await window.solana.disconnect();
-      if (window.phantom?.solana?.disconnect)
-        await window.phantom.solana.disconnect();
+      if (window.phantom?.solana?.disconnect) await window.phantom.solana.disconnect();
+      if (window.solflare?.disconnect) await window.solflare.disconnect();
+    } catch {
+      // ignore disconnect errors
+    }
+    // Clear the recent-fast-reconnect cookie on the backend if present
+    try {
+      await fetch(`${BACKEND}/api/auth/link/solana/clear`, {
+        method: "POST",
+        credentials: "include",
+      }).catch(() => {});
     } catch {}
+    // Inform any listeners
+    window.dispatchEvent(new CustomEvent("tc-wallet-unlinked"));
   };
 
   return (
@@ -126,6 +151,7 @@ export const AuthProvider = ({ children }) => {
         wallet,
         loading,
         walletSync,
+        // utilities exposed to UI
         detectWallets,
         loadWallet,
         tryFastReconnect,

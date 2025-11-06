@@ -22,6 +22,17 @@ export default function Navbar() {
     if (!loading && !user) navigate("/");
   }, [loading, user, navigate]);
 
+  // When the modal finishes linking on the backend, update UI immediately
+  useEffect(() => {
+    const onLinked = async () => {
+      setModalOpen(false);
+      // pull fresh wallet state from backend/context (no signing needed)
+      await tryFastReconnect();
+    };
+    window.addEventListener("tc-wallet-linked", onLinked);
+    return () => window.removeEventListener("tc-wallet-linked", onLinked);
+  }, [tryFastReconnect]);
+
   const handleWalletClick = async () => {
     if (!wallet) {
       const ok = await tryFastReconnect();

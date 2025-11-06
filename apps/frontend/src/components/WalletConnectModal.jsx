@@ -1,40 +1,69 @@
-// src/components/WalletConnectModal.jsx
+// apps/frontend/src/components/WalletConnectModal.jsx
 import { useEffect, useState } from "react";
-import { useAuth } from "../context/UseAuth";
+import { detectWallets, connectAndSignMessage } from "../utils/solanaWallet";
 
 const BACKEND = import.meta.env.VITE_BACKEND_URL;
-const FRONTEND = import.meta.env.VITE_FRONTEND_URL;
+const FRONTEND = import.meta.env.VITE_FRONTEND_URL || "http://localhost:5173";
 
-export default function WalletConnectModal({ open, onClose }) {
-  const { detectWallets, connectWallet, loadWallet } = useAuth();
-
+export default function WalletConnectModal({ open, onClose, onLinked }) {
   const [wallets, setWallets] = useState([]);
-  const [loadingId, setLoadingId] = useState(null);
+  const [loadingId, setLoadingId] = useState(null); // which wallet is connecting
   const [error, setError] = useState("");
 
   useEffect(() => {
     if (!open) return;
-    setWallets(detectWallets());
     setError("");
     setLoadingId(null);
-  }, [open, detectWallets]);
+    setWallets(detectWallets()); // detect Phantom & Solflare only
+  }, [open]);
 
   const linkProvider = async (wallet) => {
     setError("");
     setLoadingId(wallet.id);
     try {
+      // 1) get nonce
       const nonceRes = await fetch(`${BACKEND}/api/auth/siws/nonce`, {
         credentials: "include",
       });
+      if (!nonceRes.ok) throw new Error("Failed to get nonce");
       const { nonce } = await nonceRes.json();
-      const domain = new URL(FRONTEND).host;
-      const message = `Link wallet to TopCharger\nDomain: ${domain}\nNonce: ${nonce}\nIssuedAt: ${new Date().toISOString()}`;
 
-      await connectWallet(wallet.provider, nonce, domain, message);
-      await loadWallet();
+      // 2) SIWS-style message
+      const domain = new URL(FRONTEND).host;
+      const message =
+        `Link wallet to TopCharger\n` +
+        `Domain: ${domain}\n` +
+        `Nonce: ${nonce}\n` +
+        `IssuedAt: ${new Date().toISOString()}`;
+
+      // 3) connect & sign
+      const { publicKey, signatureB58 } = await connectAndSignMessage({
+        provider: wallet.provider,
+        messageUtf8: message,
+      });
+
+      // 4) link on backend
+      const linkRes = await fetch(`${BACKEND}/api/auth/link/solana`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ publicKey, message, signature: signatureB58 }),
+      });
+      if (!linkRes.ok) {
+        const t = await linkRes.text();
+        throw new Error(t || "Failed to link wallet");
+      }
+
+      onLinked?.(publicKey);
+      // Broadcast to any listeners (e.g., Navbar) so UI updates immediately
+      window.dispatchEvent(new CustomEvent("tc-wallet-linked", { detail: { publicKey } }));
       onClose?.();
     } catch (e) {
-      setError(e.message || "Failed to link wallet");
+      setError(
+        e?.message === "Wallet did not respond"
+          ? "Wallet window was closed or didn’t respond."
+          : e?.message || "Failed to link wallet"
+      );
     } finally {
       setLoadingId(null);
     }
@@ -48,11 +77,14 @@ export default function WalletConnectModal({ open, onClose }) {
         <h2 className="text-xl font-bold text-green-900 mb-2">
           Connect a Wallet
         </h2>
-        <p className="text-sm text-green-800 mb-4">Choose a wallet to link.</p>
+        <p className="text-sm text-green-800 mb-4">
+          Choose a wallet to link to your account.
+        </p>
 
         {!wallets.length && (
           <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded p-3 mb-4">
-            No supported wallets detected. Install Phantom or Solflare.
+            No supported wallets detected. Install <b>Phantom</b> or{" "}
+            <b>Solflare</b> and refresh the page.
           </div>
         )}
 
@@ -65,7 +97,9 @@ export default function WalletConnectModal({ open, onClose }) {
                 onClick={() => linkProvider(w)}
                 disabled={!!loadingId}
                 className={`flex items-center justify-between border rounded-lg px-4 py-3 hover:bg-green-50 ${
-                  !!loadingId && !isLoading && "opacity-60 cursor-not-allowed"
+                  !!loadingId && !isLoading
+                    ? "opacity-60 cursor-not-allowed"
+                    : ""
                 }`}
               >
                 <span className="font-medium text-green-900">{w.name}</span>
@@ -85,7 +119,7 @@ export default function WalletConnectModal({ open, onClose }) {
 
         <div className="flex justify-end gap-2">
           <button
-            onClick={() => (!loadingId ? onClose() : null)}
+            onClick={() => (!loadingId ? onClose?.() : null)}
             disabled={!!loadingId}
             className="px-4 py-2 rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-60"
           >

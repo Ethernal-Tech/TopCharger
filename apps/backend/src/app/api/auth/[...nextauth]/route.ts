@@ -9,7 +9,6 @@ const FRONTEND = process.env.VITE_FRONTEND_URL || "http://localhost:5173";
 export const authOptions: NextAuthOptions = {
   pages: {
     signIn: "/auth/signin",
-    signOut: "/auth/signout",
   },
   adapter: PrismaAdapter(prisma),
   session: { strategy: "jwt" },
@@ -29,7 +28,6 @@ export const authOptions: NextAuthOptions = {
       if (session.user && token.sub) {
         session.user.id = String(token.sub);
       }
-      // Read role on every session (single-role model preserved)
       if (token.sub) {
         const u = await prisma.user.findUnique({
           where: { id: String(token.sub) },
