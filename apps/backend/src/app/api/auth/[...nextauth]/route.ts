@@ -3,13 +3,12 @@ import NextAuth, { type NextAuthOptions } from "next-auth";
 import Google from "next-auth/providers/google";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import { prisma } from "@/lib/db";
-import Credentials from "next-auth/providers/credentials";
 
-const FRONTEND = process.env.VITE_FRONTEND_URL || "http://localhost:5173"; // your frontend URL
+const FRONTEND = process.env.VITE_FRONTEND_URL || "http://localhost:5173";
 
 export const authOptions: NextAuthOptions = {
   pages: {
-    signIn: "/auth/signin", // Specify your custom sign-in page route here
+    signIn: "/auth/signin",
     signOut: "/auth/signout",
   },
   adapter: PrismaAdapter(prisma),
@@ -20,34 +19,17 @@ export const authOptions: NextAuthOptions = {
       clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
       allowDangerousEmailAccountLinking: true,
     }),
-    Credentials({
-      id: "siws",
-      name: "Sign in with Solana",
-      credentials: {
-        userId: { label: "User ID", type: "text" },
-        publicKey: { label: "Public Key", type: "text" },
-      },
-      async authorize(creds) {
-        if (!creds?.userId || !creds?.publicKey) return null;
-        const user = await prisma.user.findUnique({
-          where: { id: String(creds.userId) },
-        });
-        return user ? ({ id: String(user.id) } as any) : null;
-      },
-    }),
   ],
   callbacks: {
     async jwt({ token, user }) {
-      // Keep only the user id (sub). No DB fetch here.
       if (user && "id" in user) token.sub = String((user as { id: string }).id);
       return token;
     },
     async session({ session, token }) {
       if (session.user && token.sub) {
-        session.user.id = String(token.sub); // copy sub to session.user.id
+        session.user.id = String(token.sub);
       }
-      // Always fetch the latest role from DB
-      // good enough for MVP, be aware the DB hit on every session call
+      // Read role on every session (single-role model preserved)
       if (token.sub) {
         const u = await prisma.user.findUnique({
           where: { id: String(token.sub) },
@@ -64,7 +46,6 @@ export const authOptions: NextAuthOptions = {
       return `${FRONTEND}/auth/callback`;
     },
   },
-  // jwt: { secret: process.env.NEXTAUTH_SECRET },
 };
 
 const handler = NextAuth(authOptions);
