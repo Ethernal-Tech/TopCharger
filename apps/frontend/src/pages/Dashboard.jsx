@@ -20,7 +20,11 @@ export default function Dashboard() {
   }, []);
 
   const handleGoogleLogin = () => {
-    window.location.href = `${BACKEND}/api/auth/signin`;
+    // Pass where you want to land after login (usually your frontend root)
+    const cb = encodeURIComponent(
+      import.meta.env.VITE_FRONTEND_URL || "http://localhost:5173"
+    );
+    window.location.href = `${BACKEND}/auth/signin?cb=${cb}`;
   };
 
   // Local base58 encoder to avoid extra deps
