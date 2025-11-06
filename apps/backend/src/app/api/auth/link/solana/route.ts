@@ -94,7 +94,7 @@ export async function POST(req: Request) {
     httpOnly: true,
     sameSite: "lax",
     path: "/",
-    maxAge: 60 * 5, // 5 minutes
+    maxAge: 60 * 0.5, // 30 seconds
     secure: false, // set true in production over HTTPS
   });
   return res;

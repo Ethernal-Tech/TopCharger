@@ -2,18 +2,38 @@ import bs58 from "bs58";
 
 export function detectWallets() {
   const out = [];
-  // Phantom
-  if (window?.phantom?.solana && window.phantom.solana.isPhantom) {
-    out.push({ id: "phantom", name: "Phantom", provider: window.phantom.solana });
-  } else if (window?.solana?.isPhantom) {
-    out.push({ id: "phantom", name: "Phantom", provider: window.solana });
+
+  const s = window.solana;
+  const phantom = window.phantom?.solana;
+  const solflare = window.solflare;
+  const okx = window.okxwallet?.solana;
+
+  console.log("Detected wallet flags:", {
+    phantom: phantom?.isPhantom,
+    solana_isPhantom: s?.isPhantom,
+    solana_isSolflare: s?.isSolflare,
+    okx: okx?.isOKXWallet,
+  });
+
+  // ✅ Phantom detection
+  if (phantom?.isPhantom === true) {
+    out.push({ id: "phantom", name: "Phantom", provider: phantom });
+  } else if (s?.isPhantom === true && !s.isSolflare && !okx?.isOKXWallet) {
+    out.push({ id: "phantom", name: "Phantom", provider: s });
   }
-  // Solflare
-  if (window?.solflare?.isSolflare) {
-    out.push({ id: "solflare", name: "Solflare", provider: window.solflare });
-  } else if (window?.solana?.isSolflare) {
-    out.push({ id: "solflare", name: "Solflare", provider: window.solana });
+
+  // ✅ Solflare detection
+  if (solflare?.isSolflare === true) {
+    out.push({ id: "solflare", name: "Solflare", provider: solflare });
+  } else if (s?.isSolflare === true && !okx?.isOKXWallet) {
+    out.push({ id: "solflare", name: "Solflare", provider: s });
   }
+
+  // ✅ OKX (ignored visually for now)
+  if (okx?.isOKXWallet === true) {
+    console.log("⚠️ OKX wallet detected — ignoring for now");
+  }
+
   return out;
 }
 

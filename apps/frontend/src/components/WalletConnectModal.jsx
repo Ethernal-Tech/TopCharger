@@ -1,61 +1,37 @@
-// apps/frontend/src/components/WalletConnectModal.jsx
+// src/components/WalletConnectModal.jsx
 import { useEffect, useState } from "react";
-import { detectWallets, connectAndSignMessage } from "../utils/solanaWallet";
+import { useAuth } from "../context/UseAuth";
 
 const BACKEND = import.meta.env.VITE_BACKEND_URL;
-const FRONTEND = import.meta.env.VITE_FRONTEND_URL || "http://localhost:5173";
+const FRONTEND = import.meta.env.VITE_FRONTEND_URL;
 
-export default function WalletConnectModal({ open, onClose, onLinked }) {
+export default function WalletConnectModal({ open, onClose }) {
+  const { detectWallets, connectWallet, loadWallet } = useAuth();
+
   const [wallets, setWallets] = useState([]);
-  const [loadingId, setLoadingId] = useState(null); // which wallet is connecting
+  const [loadingId, setLoadingId] = useState(null);
   const [error, setError] = useState("");
 
   useEffect(() => {
     if (!open) return;
+    setWallets(detectWallets());
     setError("");
-    setLoadingId(null); // reset any previous state
-    setWallets(detectWallets()); // (re)detect wallets
-  }, [open]);
+    setLoadingId(null);
+  }, [open, detectWallets]);
 
   const linkProvider = async (wallet) => {
     setError("");
     setLoadingId(wallet.id);
     try {
-      // 1) nonce
       const nonceRes = await fetch(`${BACKEND}/api/auth/siws/nonce`, {
         credentials: "include",
       });
-      if (!nonceRes.ok) throw new Error("Failed to get nonce");
       const { nonce } = await nonceRes.json();
-
-      // 2) SIWS-style message
       const domain = new URL(FRONTEND).host;
-      const message =
-        `Link wallet to TopCharger\n` +
-        `Domain: ${domain}\n` +
-        `Nonce: ${nonce}\n` +
-        `IssuedAt: ${new Date().toISOString()}`;
+      const message = `Link wallet to TopCharger\nDomain: ${domain}\nNonce: ${nonce}\nIssuedAt: ${new Date().toISOString()}`;
 
-      // 3) connect + sign
-      const { publicKey, signatureB58 } = await connectAndSignMessage({
-        provider: wallet.provider,
-        messageUtf8: message,
-      });
-
-      // 4) link on backend
-      const linkRes = await fetch(`${BACKEND}/api/auth/link/solana`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ publicKey, message, signature: signatureB58 }),
-      });
-      if (!linkRes.ok) {
-        const t = await linkRes.text();
-        throw new Error(t || "Failed to link wallet");
-      }
-
-      onLinked?.(publicKey);
-      setLoadingId(null);
+      await connectWallet(wallet.provider, nonce, domain, message);
+      await loadWallet();
       onClose?.();
     } catch (e) {
       setError(e.message || "Failed to link wallet");
@@ -72,14 +48,11 @@ export default function WalletConnectModal({ open, onClose, onLinked }) {
         <h2 className="text-xl font-bold text-green-900 mb-2">
           Connect a Wallet
         </h2>
-        <p className="text-sm text-green-800 mb-4">
-          Choose a wallet to link to your account.
-        </p>
+        <p className="text-sm text-green-800 mb-4">Choose a wallet to link.</p>
 
         {!wallets.length && (
           <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded p-3 mb-4">
-            No supported wallets detected. Install <b>Phantom</b> or{" "}
-            <b>Solflare</b> and refresh the page.
+            No supported wallets detected. Install Phantom or Solflare.
           </div>
         )}
 
@@ -90,11 +63,9 @@ export default function WalletConnectModal({ open, onClose, onLinked }) {
               <button
                 key={w.id}
                 onClick={() => linkProvider(w)}
-                disabled={!!loadingId} // block switching while one is in-flight
+                disabled={!!loadingId}
                 className={`flex items-center justify-between border rounded-lg px-4 py-3 hover:bg-green-50 ${
-                  !!loadingId && !isLoading
-                    ? "opacity-60 cursor-not-allowed"
-                    : ""
+                  !!loadingId && !isLoading && "opacity-60 cursor-not-allowed"
                 }`}
               >
                 <span className="font-medium text-green-900">{w.name}</span>
@@ -114,7 +85,7 @@ export default function WalletConnectModal({ open, onClose, onLinked }) {
 
         <div className="flex justify-end gap-2">
           <button
-            onClick={() => (!loadingId ? onClose?.() : null)}
+            onClick={() => (!loadingId ? onClose() : null)}
             disabled={!!loadingId}
             className="px-4 py-2 rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-60"
           >
