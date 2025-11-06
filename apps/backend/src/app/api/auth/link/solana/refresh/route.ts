@@ -11,16 +11,22 @@ export async function GET() {
   if (!session?.user?.id) {
     return new NextResponse("Unauthorized", {
       status: 401,
-      headers: { "Access-Control-Allow-Origin": ORIGIN, "Access-Control-Allow-Credentials": "true" },
+      headers: {
+        "Access-Control-Allow-Origin": ORIGIN,
+        "Access-Control-Allow-Credentials": "true",
+      },
     });
   }
 
-  const jar = cookies();
+  const jar = await cookies();
   const c = jar.get("tc_wallet_recent")?.value;
   if (!c) {
     return new NextResponse("No wallet session", {
       status: 401,
-      headers: { "Access-Control-Allow-Origin": ORIGIN, "Access-Control-Allow-Credentials": "true" },
+      headers: {
+        "Access-Control-Allow-Origin": ORIGIN,
+        "Access-Control-Allow-Credentials": "true",
+      },
     });
   }
 
@@ -32,7 +38,10 @@ export async function GET() {
     if (uid !== session.user.id) {
       return new NextResponse("Mismatch", {
         status: 401,
-        headers: { "Access-Control-Allow-Origin": ORIGIN, "Access-Control-Allow-Credentials": "true" },
+        headers: {
+          "Access-Control-Allow-Origin": ORIGIN,
+          "Access-Control-Allow-Credentials": "true",
+        },
       });
     }
     return new NextResponse(JSON.stringify({ ok: true, publicKey: pub }), {
@@ -40,13 +49,16 @@ export async function GET() {
         "Content-Type": "application/json",
         "Access-Control-Allow-Origin": ORIGIN,
         "Access-Control-Allow-Credentials": "true",
-        "Vary": "Cookie",
+        Vary: "Cookie",
       },
     });
   } catch {
     return new NextResponse("Expired", {
       status: 401,
-      headers: { "Access-Control-Allow-Origin": ORIGIN, "Access-Control-Allow-Credentials": "true" },
+      headers: {
+        "Access-Control-Allow-Origin": ORIGIN,
+        "Access-Control-Allow-Credentials": "true",
+      },
     });
   }
 }
