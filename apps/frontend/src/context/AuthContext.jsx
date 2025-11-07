@@ -1,5 +1,5 @@
 // src/context/AuthContext.jsx
-import { createContext, useEffect, useState, useCallback } from "react";
+import { createContext, useEffect, useState, useCallback, useRef } from "react";
 import { BACKEND } from "./Constants";
 import { detectWallets, connectAndSignMessage } from "../utils/solanaWallet";
 
@@ -11,6 +11,40 @@ export const AuthProvider = ({ children }) => {
   const [wallet, setWallet] = useState(null); // connected wallet pubkey (runtime only)
   const [loading, setLoading] = useState(true); // initial app load
   const [walletSync, setWalletSync] = useState(false); // spinner while trying fast-reconnect
+
+  // Run-at-most-once guard for fast reconnect after login
+  const fastReconnectTriedRef = useRef(false);
+
+  // -------------------------
+  // Wallet helpers
+  // -------------------------
+
+  // Fast path (cookie-based) reconnect without re-signing
+  const tryFastReconnect = useCallback(async () => {
+    // No user session → nothing to do
+    if (!user) return false;
+
+    setWalletSync(true);
+    try {
+      const res = await fetch(`${BACKEND}/api/auth/link/solana/refresh`, {
+        credentials: "include",
+      });
+
+      if (res.ok) {
+        const { publicKey } = await res.json();
+        setWallet(publicKey);
+        return true;
+      }
+      // 204 = no cookie (not an error) -> open modal when user clicks Connect
+      if (res.status === 204) return false;
+
+      return false;
+    } catch {
+      return false;
+    } finally {
+      setWalletSync(false);
+    }
+  }, [user]);
 
   // -------------------------
   // Auth bootstrap
@@ -58,13 +92,28 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
-  // First boot
+  // First boot: load auth once
   useEffect(() => {
     (async () => {
       await loadAuth();
       setLoading(false);
     })();
+    // deliberately only depends on loadAuth to avoid loops
   }, [loadAuth]);
+
+  // After user is known, try fast reconnect ONCE (if no live wallet yet)
+  useEffect(() => {
+    (async () => {
+      if (!user) return;
+      if (wallet) return; // already connected
+      if (fastReconnectTriedRef.current) return;
+
+      fastReconnectTriedRef.current = true;
+      try {
+        await tryFastReconnect();
+      } catch {}
+    })();
+  }, [user, wallet, tryFastReconnect]);
 
   // Listen for wallet-link events fired by the modal (and for unlinks)
   useEffect(() => {
@@ -77,35 +126,6 @@ export const AuthProvider = ({ children }) => {
       window.removeEventListener("tc-wallet-unlinked", onUnlinked);
     };
   }, []);
-
-  // -------------------------
-  // Wallet helpers
-  // -------------------------
-
-  // Fast path (cookie-based) reconnect without re-signing
-  const tryFastReconnect = useCallback(async () => {
-    if (!user) return false;
-    setWalletSync(true);
-    try {
-      const res = await fetch(`${BACKEND}/api/auth/link/solana/refresh`, {
-        credentials: "include",
-      });
-
-      if (res.ok) {
-        const { publicKey } = await res.json();
-        setWallet(publicKey);
-        return true;
-      }
-      // 204 = no cookie (not an error) -> open modal
-      if (res.status === 204) return false;
-
-      return false;
-    } catch {
-      return false;
-    } finally {
-      setWalletSync(false);
-    }
-  }, [user]);
 
   // Full connect + link flow (the modal will call this)
   const connectWallet = async (provider, _nonce, _domain, message) => {
@@ -126,7 +146,7 @@ export const AuthProvider = ({ children }) => {
     return publicKey;
   };
 
-  // Disconnect wallet locally + clear the short-lived fast-reconnect cookie
+  // Disconnect wallet locally (do NOT clear fast-reconnect cookie here)
   const disconnectWallet = async () => {
     setWallet(null);
     try {
@@ -137,13 +157,6 @@ export const AuthProvider = ({ children }) => {
     } catch {
       // ignore disconnect errors
     }
-    // Clear the recent-fast-reconnect cookie on the backend if present
-    try {
-      await fetch(`${BACKEND}/api/auth/link/solana/clear`, {
-        method: "POST",
-        credentials: "include",
-      }).catch(() => {});
-    } catch {}
     // Inform any listeners
     window.dispatchEvent(new CustomEvent("tc-wallet-unlinked"));
   };

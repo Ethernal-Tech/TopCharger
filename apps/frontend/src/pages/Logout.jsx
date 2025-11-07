@@ -18,9 +18,19 @@ export default function LogoutPage() {
       const signoutUrl = `${BACKEND}/auth/signout?cb=${callback}`;
 
       try {
-        // 1) Best-effort disconnect via context (handles Phantom/Solflare + clears fast-reconnect cookie)
+        // 1) Best-effort disconnect via context (handles Phantom/Solflare)
         try {
           await disconnectWallet();
+        } catch {
+          // ignore
+        }
+
+        // 1.1) Explicitly clear the short-lived fast-reconnect cookie on the backend
+        try {
+          await fetch(`${BACKEND}/api/auth/link/solana/clear`, {
+            method: "POST",
+            credentials: "include",
+          });
         } catch {
           // ignore
         }
