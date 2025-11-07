@@ -1,5 +1,5 @@
 // src/pages/Dashboard.jsx
-import React, { useEffect } from "react";
+import { useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { FRONTEND, BACKEND } from "../context/Constants.js";
 import { useAuth } from "../context/UseAuth.js";
@@ -7,7 +7,7 @@ import { useAuth } from "../context/UseAuth.js";
 export default function Dashboard() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, role, loading } = useAuth();
+  const { role, loading } = useAuth();
 
   useEffect(() => {
     if (loading) return; // wait for AuthContext to bootstrap

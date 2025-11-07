@@ -1,4 +1,4 @@
-import { NextResponse, NextRequest } from "next/server";
+import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireDriverContext, requireHostContext } from "@/lib/authz";
 import { ok, options } from "@/lib/http";
