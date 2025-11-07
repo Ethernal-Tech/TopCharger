@@ -1,82 +1,71 @@
-import { useEffect, useState, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+// apps/frontend/src/pages/AuthCallback.jsx
+import { useEffect, useRef } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import FullScreenLoader from "../components/FullScreenLoader.jsx";
-
-const BACKEND = import.meta.env.VITE_BACKEND_URL;
+import { BACKEND } from "../context/Constants.js";
 
 export default function AuthCallback() {
-    const [loading, setLoading] = useState(true); // Loading spinner
-    const [error, setError] = useState(null);     // Optional error
-    const navigate = useNavigate();
-    const ranRef = useRef(false);                 // Prevent double effect
+  const navigate = useNavigate();
+  const location = useLocation();
+  const ranRef = useRef(false);
 
-    useEffect(() => {
-        if (ranRef.current) return;
-        ranRef.current = true;
+  useEffect(() => {
+    if (ranRef.current) return;
+    ranRef.current = true;
 
-        const fetchUser = async () => {
-            try {
-                // Fetch token from backend
-                const tokenRes = await fetch(`${BACKEND}/api/auth/token`, {
-                    method: "GET",
-                    credentials: "include",
-                });
+    (async () => {
+      try {
+        // 1) Ensure backend session alive + short-lived token (optional)
+        const tok = await fetch(`${BACKEND}/api/auth/token`, {
+          method: "GET",
+          credentials: "include",
+        });
+        if (!tok.ok) throw new Error("Failed to get token");
+        const { token } = await tok.json();
+        sessionStorage.setItem("tc_token", token);
 
-                if (!tokenRes.ok) throw new Error("Failed to get token");
+        // 2) Fetch user
+        const me = await fetch(`${BACKEND}/api/auth/me`, {
+          method: "GET",
+          credentials: "include",
+        });
+        if (!me.ok) throw new Error("Failed to get user info");
 
-                const { token } = await tokenRes.json();
-                sessionStorage.setItem("tc_token", token);
+        const { user } = await me.json();
+        sessionStorage.setItem("tc_user", JSON.stringify(user));
+        sessionStorage.setItem("tc_role", user.role);
 
-                // Fetch user info
-                const meRes = await fetch(`${BACKEND}/api/auth/me`, {
-                    method: "GET",
-                    credentials: "include",
-                });
+        // 3) Optional redirect param support
+        const params = new URLSearchParams(location.search);
+        const redirect = params.get("redirect");
 
-                if (!meRes.ok) throw new Error("Failed to get user info");
+        if (user.role === "UNSET") {
+          navigate("/select-role", { replace: true });
+          return;
+        }
 
-                const { user } = await meRes.json();
-                sessionStorage.setItem("tc_user", JSON.stringify(user));
-                sessionStorage.setItem("tc_role", user.role);
+        if (redirect) {
+          navigate(redirect, { replace: true });
+          return;
+        }
 
-                // Navigate based on role
-                switch (user.role) {
-                    case "UNSET":
-                        navigate("/select-role", { replace: true });
-                        break;
-                    case "HOST":
-                        navigate("/my-chargers", { replace: true });
-                        break;
-                    case "DRIVER":
-                        navigate("/chargers", { replace: true });
-                        break;
-                    default:
-                        navigate("/", { replace: true });
-                }
-            } catch (err) {
-                console.error("Auth callback error:", err);
-                setError(err.message || "Unknown error");
-                navigate("/", { replace: true });
-            } finally {
-                setLoading(false);
-            }
-        };
+        // 4) Role defaults
+        switch (user.role) {
+          case "HOST":
+            navigate("/my-chargers", { replace: true });
+            break;
+          case "DRIVER":
+            navigate("/chargers", { replace: true });
+            break;
+          default:
+            navigate("/", { replace: true });
+        }
+      } catch (e) {
+        console.error("Auth callback error:", e);
+        navigate("/", { replace: true });
+      }
+    })();
+  }, [navigate, location.search]);
 
-        fetchUser();
-    }, [navigate]);
-
-    // Show spinner while fetching
-    if (loading) return <FullScreenLoader />;
-
-    // Optionally show error if needed
-    if (error) {
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-red-100">
-                <p className="text-red-900 font-semibold">{error}</p>
-            </div>
-        );
-    }
-
-    // Never render anything else; redirect happens automatically
-    return null;
+  return <FullScreenLoader />;
 }

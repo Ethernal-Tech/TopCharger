@@ -1,26 +1,37 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "../[...nextauth]/route";
+import { prisma } from "@/lib/db";
+import { corsResponse, corsOptions } from "@/lib/cors";
+
+export async function OPTIONS() {
+  return corsOptions();
+}
 
 export async function GET() {
   const session = await getServerSession(authOptions);
-  if (!session?.user) return new Response("Unauthorized", { status: 401 });
+  if (!session?.user?.id) return corsResponse("Unauthorized", 401);
 
-  return new Response(JSON.stringify({ user: session.user }), {
-    headers: {
-      "Content-Type": "application/json",
-      "Access-Control-Allow-Origin": "http://localhost:5173",
-      "Access-Control-Allow-Credentials": "true",
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: {
+      id: true,
+      email: true,
+      role: true,
+      accounts: {
+        where: { provider: "solana" },
+        select: { providerAccountId: true },
+      },
     },
   });
-}
 
-export function OPTIONS() {
-  return new Response(null, {
-    headers: {
-      "Access-Control-Allow-Origin": "http://localhost:5173",
-      "Access-Control-Allow-Credentials": "true",
-      "Access-Control-Allow-Headers": "content-type",
-      "Access-Control-Allow-Methods": "GET,OPTIONS",
+  if (!user) return corsResponse("Unauthorized", 401);
+
+  return corsResponse({
+    user: {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      wallets: user.accounts?.map((a) => a.providerAccountId) ?? [],
     },
   });
 }

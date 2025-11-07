@@ -64,14 +64,10 @@ export async function POST(req: NextRequest) {
             create: {
               fullName: parsed.data.fullName,
               phone: parsed.data.phone,
-              solanaPubkey: parsed.data.solanaPubkey,
-              preferredConnector: parsed.data.preferredConnector,
             },
             update: {
               fullName: parsed.data.fullName,
               phone: parsed.data.phone,
-              solanaPubkey: parsed.data.solanaPubkey,
-              preferredConnector: parsed.data.preferredConnector,
             },
           },
         },

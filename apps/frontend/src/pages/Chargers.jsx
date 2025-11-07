@@ -4,318 +4,321 @@ import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import FullScreenLoader from "../components/FullScreenLoader.jsx";
-
-const BACKEND = import.meta.env.VITE_BACKEND_URL;
+import { BACKEND } from "../context/Constants.js";
 
 // Marker icons
 const greenIcon = new L.Icon({
-    iconUrl: "https://cdn.jsdelivr.net/gh/pointhi/leaflet-color-markers@master/img/marker-icon-2x-green.png",
-    shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
-    iconSize: [25, 41],
-    iconAnchor: [12, 41],
-    popupAnchor: [1, -34],
-    shadowSize: [41, 41],
+  iconUrl:
+    "https://cdn.jsdelivr.net/gh/pointhi/leaflet-color-markers@master/img/marker-icon-2x-green.png",
+  shadowUrl:
+    "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41],
 });
 
 const redIcon = new L.Icon({
-    iconUrl: "https://cdn.jsdelivr.net/gh/pointhi/leaflet-color-markers@master/img/marker-icon-2x-red.png",
-    shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
-    iconSize: [25, 41],
-    iconAnchor: [12, 41],
-    popupAnchor: [1, -34],
-    shadowSize: [41, 41],
+  iconUrl:
+    "https://cdn.jsdelivr.net/gh/pointhi/leaflet-color-markers@master/img/marker-icon-2x-red.png",
+  shadowUrl:
+    "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41],
 });
 
 // Fly map helper
 function FlyTo({ position }) {
-    const map = useMap();
-    useEffect(() => {
-        if (position) map.flyTo(position, 16);
-    }, [position, map]);
-    return null;
+  const map = useMap();
+  useEffect(() => {
+    if (position) map.flyTo(position, 16);
+  }, [position, map]);
+  return null;
 }
 
-// Charger card component
+// Charger card
 function ChargerCard({ charger, onStart, onFlyTo }) {
-    return (
-        <div className="bg-white p-4 rounded shadow flex justify-between items-center">
-            <div>
-                <span
-                    className="font-bold text-blue-600 cursor-pointer hover:underline"
-                    onClick={() => onFlyTo(charger)}
-                >
-                    {charger.name}
-                </span>
-                <br />
-                Lat: {charger.latitude}, Lng: {charger.longitude}
-                <br />
-                Power: {charger.powerKw} kW
-                <br />
-                Price: {charger.pricePerKwh} €/kWh
-                <br />
-                Status: {charger.available ? "Available" : "Occupied"}
-            </div>
+  return (
+    <div className="bg-white p-4 rounded shadow flex justify-between items-center">
+      <div>
+        <span
+          className="font-bold text-blue-600 cursor-pointer hover:underline"
+          onClick={() => onFlyTo(charger)}
+        >
+          {charger.name}
+        </span>
+        <br />
+        Lat: {charger.latitude}, Lng: {charger.longitude}
+        <br />
+        Power: {charger.powerKw} kW
+        <br />
+        Price: {charger.pricePerKwh} €/kWh
+        <br />
+        Status: {charger.available ? "Available" : "Occupied"}
+      </div>
 
-            {charger.available ? (
-                <button
-                    className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700"
-                    onClick={() => onStart(charger.id)}
-                >
-                    Start
-                </button>
-            ) : null}
-        </div>
-    );
+      {charger.available ? (
+        <button
+          className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700"
+          onClick={() => onStart(charger.id)}
+        >
+          Start
+        </button>
+      ) : null}
+    </div>
+  );
 }
 
 export default function Chargers() {
-    const [chargers, setChargers] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
-    const [roleChecked, setRoleChecked] = useState(false);
-    const [selectedPosition, setSelectedPosition] = useState(null);
-    const [activeSession, setActiveSession] = useState(null);
-    const [progress, setProgress] = useState({});
-    const popupRefs = useRef({});
+  const [chargers, setChargers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [selectedPosition, setSelectedPosition] = useState(null);
+  const [activeSession, setActiveSession] = useState(null);
+  const [progress, setProgress] = useState({});
+  const markerRefs = useRef({}); // store Marker refs by charger id
 
-    // Check driver role
-    useEffect(() => {
-        const checkRole = async () => {
-            try {
-                const res = await fetch(`${BACKEND}/api/auth/me`, {
-                    method: "GET",
-                    credentials: "include",
-                });
-                const data = await res.json();
-                if (!res.ok || !data.user || data.user.role !== "DRIVER") {
-                    window.location.href = "/";
-                    return;
-                }
-                setRoleChecked(true);
-            } catch (err) {
-                console.error("Role check failed:", err);
-                window.location.href = "/";
-            }
-        };
-        checkRole();
-    }, []);
+  // Fetch chargers + active session
+  useEffect(() => {
+    const ac = new AbortController();
+    (async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        // chargers
+        const resChargers = await fetch(`${BACKEND}/api/chargers`, {
+          method: "GET",
+          credentials: "include",
+          signal: ac.signal,
+        });
+        const dataChargers = await resChargers.json();
+        const parsedChargers = Array.isArray(dataChargers)
+          ? dataChargers
+          : Array.isArray(dataChargers.items)
+          ? dataChargers.items
+          : Array.isArray(dataChargers.chargers)
+          ? dataChargers.chargers
+          : [];
+        const sanitized = parsedChargers.map((c) => ({
+          ...c,
+          id: c.id ?? c._id, // normalize id
+          latitude: Number(c.latitude),
+          longitude: Number(c.longitude),
+          powerKw: Number(c.powerKw ?? c.powerKW ?? 0),
+          pricePerKwh: Number(c.pricePerKwh),
+          available: Boolean(c.available),
+        }));
+        setChargers(sanitized);
 
-    // Fetch chargers and active session
-    useEffect(() => {
-        if (!roleChecked) return;
-
-        const fetchData = async () => {
-            setLoading(true);
-            setError(null);
-            try {
-                // Fetch all chargers
-                const resChargers = await fetch(`${BACKEND}/api/chargers`, {
-                    method: "GET",
-                    credentials: "include",
-                });
-                const dataChargers = await resChargers.json();
-                const parsedChargers = Array.isArray(dataChargers)
-                    ? dataChargers
-                    : Array.isArray(dataChargers.items)
-                        ? dataChargers.items
-                        : Array.isArray(dataChargers.chargers)
-                            ? dataChargers.chargers
-                            : [];
-
-                setChargers(parsedChargers);
-
-                // Fetch active session
-                const resActive = await fetch(`${BACKEND}/api/sessions/active`, {
-                    method: "GET",
-                    credentials: "include",
-                });
-                const dataActive = await resActive.json();
-                if (dataActive && dataActive.id) {
-                    setActiveSession(dataActive);
-                    setProgress({ [dataActive.chargerId]: 0 });
-                } else {
-                    setActiveSession(null);
-                }
-            } catch (err) {
-                console.error("Fetching data failed:", err);
-                setError(err.message || "Unknown error");
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchData();
-    }, [roleChecked]);
-
-    // Start session
-    const startSession = async (chargerId) => {
-        try {
-            const res = await fetch(`${BACKEND}/api/chargers/${chargerId}/start`, {
-                method: "POST",
-                credentials: "include",
-            });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.message || "Failed to start session");
-
-            const session = data.session;
-            if (!session?.id) throw new Error("Backend did not return session ID");
-
-            setActiveSession(session);
-            setProgress({ [session.chargerId]: 0 });
-            setChargers(
-                chargers.map((c) =>
-                    c.id === chargerId ? { ...c, available: false } : c
-                )
-            );
-        } catch (err) {
-            alert("❌ " + err.message);
+        // active session
+        const resActive = await fetch(`${BACKEND}/api/sessions/active`, {
+          method: "GET",
+          credentials: "include",
+          signal: ac.signal,
+        });
+        const dataActive = await resActive.json().catch(() => null);
+        if (resActive.ok && dataActive && dataActive.id) {
+          setActiveSession(dataActive);
+          setProgress({ [dataActive.chargerId]: 0 });
+        } else {
+          setActiveSession(null);
         }
-    };
-
-    // Stop session
-    const stopSession = async (sessionId, chargerId) => {
-        try {
-            const res = await fetch(`${BACKEND}/api/sessions/${sessionId}/stop`, {
-                method: "POST",
-                credentials: "include",
-            });
-            if (!res.ok) throw new Error("Failed to stop session");
-
-            setActiveSession(null);
-            setProgress({});
-            setChargers(
-                chargers.map((c) =>
-                    c.id === chargerId ? { ...c, available: true } : c
-                )
-            );
-        } catch (err) {
-            alert("❌ " + err.message);
+      } catch (err) {
+        if (!ac.signal.aborted) {
+          console.error("Fetching chargers/active session failed:", err);
+          setError(err.message || "Unknown error");
         }
-    };
+      } finally {
+        if (!ac.signal.aborted) setLoading(false);
+      }
+    })();
+    return () => ac.abort();
+  }, []);
 
-    // Mock progress update
-    useEffect(() => {
-        const interval = setInterval(() => {
-            setProgress((prev) => {
-                const updated = {};
-                Object.entries(prev).forEach(([chargerId, value]) => {
-                    updated[chargerId] = Math.min(value + Math.random() * 5, 100);
-                });
-                return updated;
-            });
-        }, 1000);
+  // Start session
+  const startSession = async (chargerId) => {
+    try {
+      const res = await fetch(`${BACKEND}/api/chargers/${chargerId}/start`, {
+        method: "POST",
+        credentials: "include",
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.message || "Failed to start session");
 
-        return () => clearInterval(interval);
-    }, []);
+      const session = data.session;
+      if (!session?.id) throw new Error("Backend did not return session ID");
 
-    const mapCenter = chargers.length
-        ? [Number(chargers[0].latitude), Number(chargers[0].longitude)]
-        : [45.267136, 19.833549];
-
-    const flyToCharger = (charger) => {
-        const position = [Number(charger.latitude), Number(charger.longitude)];
-        setSelectedPosition(position);
-        const popup = popupRefs.current[charger.id || charger._id];
-        if (popup) popup.openPopup();
-    };
-
-    if (!roleChecked || loading) {
-        return <FullScreenLoader />;
+      setActiveSession(session);
+      setProgress({ [session.chargerId]: 0 });
+      setChargers((prev) =>
+        prev.map((c) => (c.id === chargerId ? { ...c, available: false } : c))
+      );
+    } catch (err) {
+      alert("❌ " + (err.message || "Failed to start"));
     }
+  };
 
-    if (error) return <p className="p-6 text-red-900">Error: {error}</p>;
+  // Stop session
+  const stopSession = async (sessionId, chargerId) => {
+    try {
+      const res = await fetch(`${BACKEND}/api/sessions/${sessionId}/stop`, {
+        method: "POST",
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to stop session");
 
-    return (
-        <div className="min-h-screen relative flex flex-col p-4 sm:p-6 gap-4">
-            {/* Background */}
-            <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: "url('/top_charger.png')" }}></div>
-            <div className="absolute inset-0 bg-gradient-to-b from-emerald-900/70 via-emerald-900/40 to-emerald-900/70"></div>
+      setActiveSession(null);
+      setProgress({});
+      setChargers((prev) =>
+        prev.map((c) => (c.id === chargerId ? { ...c, available: true } : c))
+      );
+    } catch (err) {
+      alert("❌ " + (err.message || "Failed to stop"));
+    }
+  };
 
-            {/* Content */}
-            <div className="relative z-10 flex flex-col gap-4">
-                {/* Top section: map + list */}
-                <div className="flex flex-col md:flex-row gap-4">
-                    {/* Map */}
-                    <div className="w-full md:w-[65%] h-64 sm:h-[50vh] md:h-[50vh] rounded overflow-hidden shadow-lg">
-                        <MapContainer center={mapCenter} zoom={13} style={{ height: "100%", width: "100%" }}>
-                            <TileLayer
-                                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                                attribution="&copy; OpenStreetMap contributors"
-                            />
-                            {chargers.map((charger) => (
-                                <Marker
-                                    key={charger.id || charger._id}
-                                    position={[Number(charger.latitude), Number(charger.longitude)]}
-                                    icon={charger.available ? greenIcon : redIcon}
-                                    ref={(el) => {
-                                        if (el) popupRefs.current[charger.id || charger._id] = el.getPopup();
-                                    }}
-                                >
-                                    <Popup>
-                                        <strong>{charger.name}</strong>
-                                        <br />
-                                        Lat: {charger.latitude}, Lng: {charger.longitude}
-                                        <br />
-                                        Power: {charger.powerKw} kW
-                                        <br />
-                                        Price: {charger.pricePerKwh} €/kWh
-                                        <br />
-                                        Status: {charger.available ? "Available" : "Occupied"}
-                                    </Popup>
-                                </Marker>
-                            ))}
-                            {selectedPosition && <FlyTo position={selectedPosition} />}
-                        </MapContainer>
-                    </div>
+  // Mock progress update
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setProgress((prev) => {
+        const updated = {};
+        Object.entries(prev).forEach(([chargerId, value]) => {
+          updated[chargerId] = Math.min(value + Math.random() * 5, 100);
+        });
+        return updated;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
 
-                    {/* Charger list */}
-                    <div className="w-full md:w-[35%] flex flex-col gap-4 overflow-y-auto p-4 max-h-64 sm:max-h-[50vh] md:max-h-[50vh] rounded shadow-lg bg-white/80">
-                        <h1 className="text-xl sm:text-2xl font-bold mb-2">Nearby Chargers</h1>
-                        {chargers.map((charger) => (
-                            <ChargerCard
-                                key={charger.id || charger._id}
-                                charger={charger}
-                                onStart={startSession}
-                                onFlyTo={flyToCharger}
-                            />
-                        ))}
-                    </div>
-                </div>
+  const mapCenter = chargers.length
+    ? [chargers[0].latitude, chargers[0].longitude]
+    : [45.267136, 19.833549];
 
-                {/* Bottom section: active sessions */}
-                <div className="mt-4 p-4 rounded shadow-lg bg-white/80">
-                    <h2 className="text-xl sm:text-xl font-bold mb-2">Active Charging Session</h2>
-                    {!activeSession ? (
-                        <p>No active session</p>
-                    ) : (
-                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-2 bg-green-50 rounded mb-2 gap-2">
-                            <div className="flex-1">
-                                <span className="font-semibold">{activeSession.chargerNameSnapshot}</span>
-                                <br />
-                                <span>Charger ID: {activeSession.chargerId}</span>
-                                <br />
-                                <span>Driver ID: {activeSession.driverId}</span>
-                                <br />
-                                <span>Host ID: {activeSession.hostId}</span>
-                                <br />
-                                <span>Started at: {new Date(activeSession.startedAt).toLocaleString()}</span>
-                                <div className="w-full bg-gray-300 rounded h-3 mt-1">
-                                    <div
-                                        className="bg-green-600 h-3 rounded"
-                                        style={{ width: `${progress[activeSession.chargerId] || 0}%` }}
-                                    />
-                                </div>
-                            </div>
-                            <button
-                                className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 flex-shrink-0"
-                                onClick={() => stopSession(activeSession.id, activeSession.chargerId)}
-                            >
-                                Stop
-                            </button>
-                        </div>
-                    )}
-                </div>
-            </div>
+  const flyToCharger = (charger) => {
+    const position = [Number(charger.latitude), Number(charger.longitude)];
+    setSelectedPosition(position);
+    // open popup if we have the marker ref
+    const ref = markerRefs.current[charger.id];
+    if (ref && ref.openPopup) ref.openPopup();
+  };
+
+  if (loading) return <FullScreenLoader />;
+  if (error) return <p className="p-6 text-red-900">Error: {error}</p>;
+
+  return (
+    <div className="min-h-screen relative flex flex-col p-4 sm:p-6 gap-4">
+      {/* Background */}
+      <div
+        className="absolute inset-0 bg-cover bg-center"
+        style={{ backgroundImage: "url('/top_charger.png')" }}
+      />
+      <div className="absolute inset-0 bg-gradient-to-b from-emerald-900/70 via-emerald-900/40 to-emerald-900/70" />
+
+      {/* Content */}
+      <div className="relative z-10 flex flex-col gap-4">
+        {/* Top section: map + list */}
+        <div className="flex flex-col md:flex-row gap-4">
+          {/* Map */}
+          <div className="w-full md:w-[65%] h-64 sm:h-[50vh] md:h-[50vh] rounded overflow-hidden shadow-lg">
+            <MapContainer
+              center={mapCenter}
+              zoom={13}
+              style={{ height: "100%", width: "100%" }}
+            >
+              <TileLayer
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                attribution="&copy; OpenStreetMap contributors"
+              />
+              {chargers.map((charger) => (
+                <Marker
+                  key={charger.id}
+                  position={[charger.latitude, charger.longitude]}
+                  icon={charger.available ? greenIcon : redIcon}
+                  ref={(ref) => {
+                    if (ref) markerRefs.current[charger.id] = ref;
+                  }}
+                >
+                  <Popup>
+                    <strong>{charger.name}</strong>
+                    <br />
+                    Lat: {charger.latitude}, Lng: {charger.longitude}
+                    <br />
+                    Power: {charger.powerKw} kW
+                    <br />
+                    Price: {charger.pricePerKwh} €/kWh
+                    <br />
+                    Status: {charger.available ? "Available" : "Occupied"}
+                  </Popup>
+                </Marker>
+              ))}
+              {selectedPosition && <FlyTo position={selectedPosition} />}
+            </MapContainer>
+          </div>
+
+          {/* Charger list */}
+          <div className="w-full md:w-[35%] flex flex-col gap-4 overflow-y-auto p-4 max-h-64 sm:max-h-[50vh] md:max-h-[50vh] rounded shadow-lg bg-white/80">
+            <h1 className="text-xl sm:text-2xl font-bold mb-2">
+              Nearby Chargers
+            </h1>
+            {chargers.map((charger) => (
+              <ChargerCard
+                key={charger.id}
+                charger={charger}
+                onStart={startSession}
+                onFlyTo={flyToCharger}
+              />
+            ))}
+          </div>
         </div>
-    );
+
+        {/* Bottom section: active session */}
+        <div className="mt-4 p-4 rounded shadow-lg bg-white/80">
+          <h2 className="text-xl sm:text-xl font-bold mb-2">
+            Active Charging Session
+          </h2>
+          {!activeSession ? (
+            <p>No active session</p>
+          ) : (
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-2 bg-green-50 rounded mb-2 gap-2">
+              <div className="flex-1">
+                <span className="font-semibold">
+                  {activeSession.chargerNameSnapshot}
+                </span>
+                <br />
+                <span>Charger ID: {activeSession.chargerId}</span>
+                <br />
+                <span>Driver ID: {activeSession.driverId}</span>
+                <br />
+                <span>Host ID: {activeSession.hostId}</span>
+                <br />
+                <span>
+                  Started at:{" "}
+                  {new Date(activeSession.startedAt).toLocaleString()}
+                </span>
+                <div className="w-full bg-gray-300 rounded h-3 mt-1">
+                  <div
+                    className="bg-green-600 h-3 rounded"
+                    style={{
+                      width: `${progress[activeSession.chargerId] || 0}%`,
+                    }}
+                  />
+                </div>
+              </div>
+              <button
+                className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 flex-shrink-0"
+                onClick={() =>
+                  stopSession(activeSession.id, activeSession.chargerId)
+                }
+              >
+                Stop
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 }

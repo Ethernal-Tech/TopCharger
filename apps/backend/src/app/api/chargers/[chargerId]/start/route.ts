@@ -1,6 +1,12 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
-import { badRequest, forbidden, created, options } from "@/lib/http";
+import {
+  badRequest,
+  forbidden,
+  created,
+  options,
+  unauthorized,
+} from "@/lib/http";
 import { requireDriverContext } from "@/lib/authz";
 import { sendReserveCharger, hash32 } from "@/lib/solana";
 
@@ -10,11 +16,13 @@ export async function OPTIONS() {
 
 export async function POST(
   req: NextRequest,
-  ctx: { params: Promise<{ chargerId: string }> } // params is a Promise
+  ctx: { params: Promise<{ chargerId: string }> } // keep params as Promise
 ) {
   try {
     const { userId, driver } = await requireDriverContext(req);
-     const { chargerId } = await ctx.params; // await before using params
+    const { chargerId } = await ctx.params; // await before using params
+
+    if (!chargerId) return badRequest("Missing chargerId");
 
     const charger = await prisma.charger.findUnique({
       where: { id: chargerId },
@@ -22,6 +30,7 @@ export async function POST(
     if (!charger) return badRequest("Charger not found");
     if (!charger.available) return forbidden("Charger not available (in use)");
 
+    // Prevent double-active sessions
     const [driverActive, chargerActive] = await Promise.all([
       prisma.chargingSession.findFirst({
         where: { driverId: userId, status: "ACTIVE" },
@@ -34,6 +43,10 @@ export async function POST(
     if (chargerActive)
       return forbidden("Charger already has an active session");
 
+    // Snapshots with safe defaults
+    const pricePerKwhSnap = Number(charger.pricePerKwh ?? 0);
+    const powerKwSnap = Number(charger.powerKw ?? 0);
+
     const session = await prisma.$transaction(async (tx) => {
       const s = await tx.chargingSession.create({
         data: {
@@ -41,8 +54,8 @@ export async function POST(
           chargerId,
           hostId: charger.hostId,
           status: "ACTIVE",
-          pricePerKwhSnapshot: charger.pricePerKwh,
-          powerKwSnapshot: charger.powerKw,
+          pricePerKwhSnapshot: pricePerKwhSnap,
+          powerKwSnapshot: powerKwSnap,
           connectorSnapshot: charger.connector,
           chargerNameSnapshot: charger.name,
         },
@@ -54,20 +67,21 @@ export async function POST(
       return s;
     });
 
-    // Best-effort Solana reserve
+    // Best-effort on-chain reservation (non-fatal)
     if (charger.solanaChargerPda) {
       try {
-        // Build 32-byte match_id from our backend session id
-      const matchId32 = hash32(session.id);
-      const { signature, matchPda } = await sendReserveCharger({
-      backendUserId: userId,
-      chargerPda: charger.solanaChargerPda,
-      matchId32,
-    });
+        const matchId32 = hash32(session.id);
+        const { signature, matchPda } = await sendReserveCharger({
+          backendUserId: userId,
+          chargerPda: charger.solanaChargerPda,
+          matchId32,
+        });
+
         await prisma.chargingSession.update({
           where: { id: session.id },
           data: { startTxSig: signature, solanaMatchPda: matchPda },
         });
+
         return created({
           session: {
             ...session,
@@ -77,7 +91,7 @@ export async function POST(
         });
       } catch (e) {
         console.error("reserve_charger failed:", e);
-        // do not fail the session creation
+        // proceed without chain data
       }
     }
 
@@ -90,8 +104,9 @@ export async function POST(
         : typeof e === "string"
         ? e
         : "Internal Server Error";
-    if (status === 403) return new Response(String(message), { status: 403 });
+    if (status === 401) return unauthorized();
+    if (status === 403) return forbidden(String(message || "Forbidden"));
     console.error("POST /api/chargers/:id/start failed:", e);
-    return new Response("Internal Server Error", { status: 500 });
+    return badRequest(message);
   }
 }

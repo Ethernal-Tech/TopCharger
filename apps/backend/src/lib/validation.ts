@@ -15,26 +15,13 @@ export const createChargerSchema = z.object({
   available: z.boolean().optional(), // default true
 });
 
-// Lightweight Solana pubkey check: base58, 32–44 chars (ed25519 pubkeys are 32 bytes => 44 chars base58).
-const base58 = /^[1-9A-HJ-NP-Za-km-z]+$/;
-
 export const upsertDriverProfileSchema = z.object({
-  fullName: z.string().min(2).max(100).optional(),
+  fullName: z.string().min(2).max(100),
   phone: z
     .string()
     .min(6)
     .max(20)
-    .regex(/^[0-9+()\-.\s]+$/i, "Invalid phone format")
-    .optional(),
-  solanaPubkey: z
-    .string()
-    .min(32)
-    .max(44)
-    .regex(base58, "Not a base58 string")
-    .optional(),
-  preferredConnector: z
-    .enum(["TYPE2", "CCS2", "CHADEMO", "CCS1", "NEMA14_50", "SCHUKO"])
-    .optional(),
+    .regex(/^[0-9+()\-.\s]+$/i, "Invalid phone format"),
 });
 // vehicle validation schemas
 export const createVehicleSchema = z.object({

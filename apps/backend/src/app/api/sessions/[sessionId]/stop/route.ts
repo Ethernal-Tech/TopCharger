@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
-import { badRequest, forbidden, ok, options } from "@/lib/http";
+import { badRequest, forbidden, ok, options, unauthorized } from "@/lib/http";
 import { requireDriverContext } from "@/lib/authz";
 import { sendConfirmCharge } from "@/lib/solana";
 
@@ -10,17 +10,18 @@ export async function OPTIONS() {
 
 export async function POST(
   req: NextRequest,
-  ctx: { params: Promise<{ sessionId: string }> }
+  ctx: { params: Promise<{ sessionId: string }> } // keep params as Promise
 ) {
   try {
     const { userId } = await requireDriverContext(req);
-    const { sessionId } = await ctx.params;
+    const { sessionId } = await ctx.params; // await before using params
+
+    if (!sessionId) return badRequest("Missing sessionId");
 
     const session = await prisma.chargingSession.findUnique({
       where: { id: sessionId },
     });
     if (!session) return badRequest("Session not found");
-
     if (session.driverId !== userId) return forbidden("Not your session");
     if (session.status !== "ACTIVE") return badRequest("Session is not ACTIVE");
 
@@ -30,8 +31,11 @@ export async function POST(
       (now.getTime() - session.startedAt.getTime()) / 3_600_000
     );
 
-    const energyKwh = session.powerKwSnapshot * hours;
-    const costTotal = energyKwh * session.pricePerKwhSnapshot;
+    const powerKw = Number(session.powerKwSnapshot ?? 0);
+    const pricePerKwh = Number(session.pricePerKwhSnapshot ?? 0);
+
+    const energyKwh = powerKw * hours;
+    const costTotal = energyKwh * pricePerKwh;
 
     const updated = await prisma.$transaction(async (tx) => {
       const s = await tx.chargingSession.update({
@@ -50,37 +54,38 @@ export async function POST(
       return s;
     });
 
-    // Best-effort Solana confirm
+    // Best-effort on-chain confirm (non-fatal)
+    let chainSync = "confirm_skipped";
     if (session.solanaMatchPda) {
       try {
-        if (updated.solanaMatchPda) {
-          const charger = await prisma.charger.findUnique({
-            where: { id: updated.chargerId },
-            select: { solanaChargerPda: true },
-          });
-          if (charger?.solanaChargerPda) {
-            const { signature } = await sendConfirmCharge({
-              matchPda: updated.solanaMatchPda,
-              chargerPda: charger.solanaChargerPda,
-              wasCorrect: true, // MVP
-            });
+        const charger = await prisma.charger.findUnique({
+          where: { id: updated.chargerId },
+          select: { solanaChargerPda: true },
+        });
 
-            await prisma.chargingSession.update({
-              where: { id: updated.id },
-              data: { stopTxSig: signature },
-            });
-          }
+        if (charger?.solanaChargerPda && updated.solanaMatchPda) {
+          const { signature } = await sendConfirmCharge({
+            matchPda: updated.solanaMatchPda,
+            chargerPda: charger.solanaChargerPda,
+            wasCorrect: true, // MVP
+          });
+
+          await prisma.chargingSession.update({
+            where: { id: updated.id },
+            data: { stopTxSig: signature },
+          });
+
+          chainSync = "confirm_ok";
+        } else {
+          chainSync = "confirm_missing_match_or_charger_pda";
         }
       } catch (e) {
         console.error("confirm_charge failed:", e);
-        // non-fatal for MVP
+        chainSync = "confirm_failed";
       }
     }
 
-    return ok({
-      session: updated,
-      chainSync: "confirm_failed_or_missing_match_pda",
-    });
+    return ok({ session: updated, chainSync });
   } catch (e: unknown) {
     const status = (e as { status?: number } | null)?.status;
     const message =
@@ -89,8 +94,9 @@ export async function POST(
         : typeof e === "string"
         ? e
         : "Internal Server Error";
-    if (status === 403) return new Response(message, { status: 403 });
+    if (status === 401) return unauthorized();
+    if (status === 403) return forbidden(String(message || "Forbidden"));
     console.error("POST /api/sessions/:id/stop failed:", e);
-    return new Response("Internal Server Error", { status: 500 });
+    return badRequest(message);
   }
 }
