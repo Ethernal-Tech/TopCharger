@@ -57,10 +57,10 @@ export async function connectAndSignMessage({ provider, messageUtf8 }) {
 
   const bytes = new TextEncoder().encode(messageUtf8);
 
-  // Sign (10s timeout)
+  // Sign (60s timeout)
   const signed = await withTimeout(
     provider.signMessage(bytes, "utf8"),
-    10000,
+    60000,
     "Signing request timed out"
   );
 
