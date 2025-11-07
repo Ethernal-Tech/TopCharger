@@ -22,7 +22,6 @@ export default function Navbar() {
   useEffect(() => {
     const onLinked = async () => {
       setModalOpen(false);
-      // pull fresh wallet state from backend/context (no signing needed)
       await tryFastReconnect();
     };
     window.addEventListener("tc-wallet-linked", onLinked);
@@ -30,13 +29,15 @@ export default function Navbar() {
   }, [tryFastReconnect]);
 
   const handleWalletClick = async () => {
-    // Prevent duplicate actions
     if (wallet || walletSync) return;
 
-    // Try cookie-based fast reconnect first; if not present, open modal
     const ok = await tryFastReconnect();
     if (!ok) setModalOpen(true);
   };
+
+  // Unified red “danger” button style (Logout + Disconnect Wallet)
+  const dangerBtn =
+    "bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition";
 
   return (
     <>
@@ -110,7 +111,7 @@ export default function Navbar() {
                 <button
                   type="button"
                   onClick={disconnectWallet}
-                  className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+                  className={dangerBtn}
                 >
                   Disconnect Wallet
                 </button>
@@ -120,7 +121,7 @@ export default function Navbar() {
             <button
               type="button"
               onClick={() => navigate("/logout")}
-              className="bg-green-700 text-white px-4 py-2 rounded hover:bg-green-800"
+              className={dangerBtn}
             >
               Logout
             </button>

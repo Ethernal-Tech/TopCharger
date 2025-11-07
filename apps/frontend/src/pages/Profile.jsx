@@ -170,13 +170,13 @@ export default function Profile() {
           )}
 
           <div className="pt-2">
-            <button
+           {/*  <button
               onClick={handleSendTestTx}
               disabled={sending}
               className="w-full bg-green-700 text-white py-2 px-4 rounded hover:bg-green-800 disabled:opacity-50"
             >
               {sending ? "Sending 0.01 SOL…" : "Send 0.01 SOL Test Tx"}
-            </button>
+            </button> */}
           </div>
         </div>
       </div>
