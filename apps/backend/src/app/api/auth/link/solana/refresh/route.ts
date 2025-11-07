@@ -1,75 +1,32 @@
 import { getServerSession } from "next-auth";
-import { NextResponse } from "next/server";
-import { authOptions } from "../../../[...nextauth]/route";
 import { jwtVerify } from "jose";
 import { cookies } from "next/headers";
+import { authOptions } from "../../../[...nextauth]/route";
+import { corsResponse, corsOptions } from "@/lib/cors";
 
-const ORIGIN = "http://localhost:5173";
+export async function OPTIONS() {
+  return corsOptions();
+}
 
 export async function GET() {
   const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
-    return new NextResponse("Unauthorized", {
-      status: 401,
-      headers: {
-        "Access-Control-Allow-Origin": ORIGIN,
-        "Access-Control-Allow-Credentials": "true",
-      },
-    });
-  }
+  if (!session?.user?.id) return corsResponse("Unauthorized", 401);
 
   const jar = await cookies();
   const c = jar.get("tc_wallet_recent")?.value;
-  if (!c) {
-    return new NextResponse("No wallet session", {
-      status: 401,
-      headers: {
-        "Access-Control-Allow-Origin": ORIGIN,
-        "Access-Control-Allow-Credentials": "true",
-      },
-    });
-  }
+  if (!c) return corsResponse(null, 204);
 
   try {
-    const secret = new TextEncoder().encode(process.env.NEXTAUTH_SECRET!);
-    const { payload } = await jwtVerify(c, secret);
-    const uid = String(payload.uid);
-    const pub = String(payload.pub);
-    if (uid !== session.user.id) {
-      return new NextResponse("Mismatch", {
-        status: 401,
-        headers: {
-          "Access-Control-Allow-Origin": ORIGIN,
-          "Access-Control-Allow-Credentials": "true",
-        },
-      });
-    }
-    return new NextResponse(JSON.stringify({ ok: true, publicKey: pub }), {
-      headers: {
-        "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": ORIGIN,
-        "Access-Control-Allow-Credentials": "true",
-        Vary: "Cookie",
-      },
-    });
-  } catch {
-    return new NextResponse("Expired", {
-      status: 401,
-      headers: {
-        "Access-Control-Allow-Origin": ORIGIN,
-        "Access-Control-Allow-Credentials": "true",
-      },
-    });
-  }
-}
+    const secret = new TextEncoder().encode(
+      process.env.NEXTAUTH_SECRET || "dev-secret"
+    );
+    const { payload } = await jwtVerify(c, secret, { clockTolerance: 10 });
 
-export function OPTIONS() {
-  return new NextResponse(null, {
-    headers: {
-      "Access-Control-Allow-Origin": ORIGIN,
-      "Access-Control-Allow-Credentials": "true",
-      "Access-Control-Allow-Headers": "content-type",
-      "Access-Control-Allow-Methods": "GET,OPTIONS",
-    },
-  });
+    if (String(payload.uid) !== session.user.id)
+      return corsResponse("Mismatch", 401);
+
+    return corsResponse({ ok: true, publicKey: payload.pub });
+  } catch {
+    return corsResponse("Expired", 401);
+  }
 }

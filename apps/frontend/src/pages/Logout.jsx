@@ -1,57 +1,58 @@
 // src/pages/Logout.jsx
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import FullScreenLoader from "../components/FullScreenLoader.jsx";
-
-const BACKEND = import.meta.env.VITE_BACKEND_URL;
-const FRONTEND = import.meta.env.VITE_FRONTEND_URL || "http://localhost:5173";
+import { BACKEND, FRONTEND } from "../context/Constants.js";
+import { useAuth } from "../context/UseAuth";
 
 export default function LogoutPage() {
+  const ranRef = useRef(false);
+  const { disconnectWallet } = useAuth();
+
   useEffect(() => {
+    if (ranRef.current) return;
+    ranRef.current = true;
+
     (async () => {
+      // Always jump back to the frontend root
+      const callback = encodeURIComponent(FRONTEND);
+      const signoutUrl = `${BACKEND}/auth/signout?cb=${callback}`;
+
       try {
-        // 1) Best-effort disconnect extension wallets (Phantom/Solflare)
+        // 1) Best-effort disconnect via context (handles Phantom/Solflare + clears fast-reconnect cookie)
         try {
-          if (window?.phantom?.solana?.disconnect) {
-            await window.phantom.solana.disconnect();
-          }
-          if (window?.solana?.isPhantom && window.solana.disconnect) {
-            await window.solana.disconnect();
-          }
-          if (window?.solflare?.disconnect) {
-            await window.solflare.disconnect();
-          }
-        } catch {}
+          await disconnectWallet();
+        } catch {
+          // ignore
+        }
 
-        // 2) Clear our “recent wallet” cookie on the backend so fast-reconnect won’t kick in
-        try {
-          await fetch(`${BACKEND}/api/auth/link/solana/clear`, {
-            method: "POST",
-            credentials: "include",
-          });
-        } catch {}
-
-        // 3) Nuke frontend session
+        // 2) Clear any remaining FE session state
         try {
           sessionStorage.removeItem("tc_token");
           sessionStorage.removeItem("tc_user");
           sessionStorage.removeItem("tc_role");
           sessionStorage.removeItem("tc_wallet");
-        } catch {}
+        } catch {
+          // ignore
+        }
 
-        // 4) Notify any listeners (e.g., Navbar) that wallet is gone
-        try {
-          window.dispatchEvent(new CustomEvent("tc-wallet-unlinked"));
-        } catch {}
-
-        // 5) Redirect to backend auto-signout page (which does POST signout with no prompt)
-        const cb = encodeURIComponent(FRONTEND);
-        window.location.replace(`${BACKEND}/auth/signout?cb=${cb}`);
+        // 3) Kick NextAuth server-side signout (no prompt) and land back on FE
+        window.location.replace(signoutUrl);
       } catch {
-        // As a fallback, still bounce to home
+        // If anything unexpected happens, land the user home anyway
         window.location.replace(FRONTEND);
+      } finally {
+        // Safety: if navigation is blocked by the browser for any reason,
+        // force-redirect to FE after a short delay.
+        setTimeout(() => {
+          if (window.location.href !== FRONTEND) {
+            try {
+              window.location.replace(FRONTEND);
+            } catch {}
+          }
+        }, 4000);
       }
     })();
-  }, []);
+  }, [disconnectWallet]);
 
   return <FullScreenLoader />;
 }

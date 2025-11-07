@@ -1,31 +1,24 @@
-// apps/backend/src/app/api/auth/token/route.ts
-import { NextRequest } from "next/server";
-import { getToken } from "next-auth/jwt";
+import { getServerSession } from "next-auth";
+import { authOptions } from "../[...nextauth]/route";
+import { SignJWT } from "jose";
+import { corsResponse, corsOptions } from "@/lib/cors";
 
-// Returns the current NextAuth JWT (requires you're signed in via cookie)
-export async function GET(req: NextRequest) {
-  const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
-  if (!token) return new Response("Unauthorized", { status: 401 });
-
-  // Return a compact JWT string for the SPA
-  const raw = await getToken({ req, secret: process.env.NEXTAUTH_SECRET, raw: true });
-
-  return new Response(JSON.stringify({ token: raw }), {
-    headers: {
-      "Content-Type": "application/json",
-      "Access-Control-Allow-Origin": "http://localhost:5173",
-      "Access-Control-Allow-Credentials": "true",
-    },
-  });
+export async function OPTIONS() {
+  return corsOptions();
 }
 
-export function OPTIONS() {
-  return new Response(null, {
-    headers: {
-      "Access-Control-Allow-Origin": "http://localhost:5173",
-      "Access-Control-Allow-Credentials": "true",
-      "Access-Control-Allow-Headers": "content-type, authorization",
-      "Access-Control-Allow-Methods": "GET,OPTIONS",
-    },
-  });
+export async function GET() {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) return corsResponse("Unauthorized", 401);
+
+  const secret = new TextEncoder().encode(
+    process.env.NEXTAUTH_SECRET || "dev-secret"
+  );
+  const token = await new SignJWT({ sub: session.user.id })
+    .setProtectedHeader({ alg: "HS256" })
+    .setIssuedAt()
+    .setExpirationTime("5m")
+    .sign(secret);
+
+  return corsResponse({ token });
 }

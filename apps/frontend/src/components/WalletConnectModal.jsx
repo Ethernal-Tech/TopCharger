@@ -30,11 +30,12 @@ export default function WalletConnectModal({ open, onClose, onLinked }) {
 
       // 2) SIWS-style message
       const domain = new URL(FRONTEND).host;
-      const message =
-        `Link wallet to TopCharger\n` +
-        `Domain: ${domain}\n` +
-        `Nonce: ${nonce}\n` +
-        `IssuedAt: ${new Date().toISOString()}`;
+      const message = [
+        "Link wallet to TopCharger",
+        `Domain: ${domain}`,
+        `Nonce: ${nonce}`,
+        `IssuedAt: ${new Date().toISOString()}`,
+      ].join("\n");
 
       // 3) connect & sign
       const { publicKey, signatureB58 } = await connectAndSignMessage({
@@ -56,7 +57,9 @@ export default function WalletConnectModal({ open, onClose, onLinked }) {
 
       onLinked?.(publicKey);
       // Broadcast to any listeners (e.g., Navbar) so UI updates immediately
-      window.dispatchEvent(new CustomEvent("tc-wallet-linked", { detail: { publicKey } }));
+      window.dispatchEvent(
+        new CustomEvent("tc-wallet-linked", { detail: { publicKey } })
+      );
       onClose?.();
     } catch (e) {
       setError(

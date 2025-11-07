@@ -1,47 +1,38 @@
 // src/pages/Dashboard.jsx
-import React, { useEffect, useState } from "react";
-
-const FRONTEND = import.meta.env.VITE_FRONTEND_URL || "http://localhost:5173";
-const BACKEND = import.meta.env.VITE_BACKEND_URL || "http://localhost:3000";
+import React, { useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
+import { FRONTEND, BACKEND } from "../context/Constants.js";
+import { useAuth } from "../context/UseAuth.js";
 
 export default function Dashboard() {
-  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { user, role, loading } = useAuth();
 
   useEffect(() => {
-    const token = sessionStorage.getItem("tc_token");
-    const role = sessionStorage.getItem("tc_role");
-    if (token && role) {
-      if (role === "HOST") window.location.href = `${FRONTEND}/my-chargers`;
-      else if (role === "DRIVER") window.location.href = `${FRONTEND}/chargers`;
-      else setLoading(false);
-    } else {
-      setLoading(false);
-    }
-  }, []);
+    if (loading) return; // wait for AuthContext to bootstrap
+    if (!role) return; // unauthenticated or UNSET -> stay here
+
+    if (role === "HOST") navigate("/my-chargers", { replace: true });
+    else if (role === "DRIVER") navigate("/chargers", { replace: true });
+  }, [loading, role, navigate]);
 
   const handleGoogleLogin = () => {
-    // Pass where you want to land after login (usually your frontend root)
+    // preserve where the user was trying to go (if any)
+    const redirect =
+      new URLSearchParams(location.search).get("redirect") ||
+      location.state?.redirect ||
+      "/";
     const cb = encodeURIComponent(
-      import.meta.env.VITE_FRONTEND_URL || "http://localhost:5173"
+      `${FRONTEND}/auth/callback?redirect=${encodeURIComponent(redirect)}`
     );
     window.location.href = `${BACKEND}/auth/signin?cb=${cb}`;
   };
 
-  // Local base58 encoder to avoid extra deps
-  function bs58encode(bytes) {
-    // Minimal base58 for Phantom signature → you can import bs58 if already in project
-    // To stay dependency-light here, we’ll assume bs58 is available via a global or you can replace with your existing bs58 import.
-    // If you already use 'bs58' in frontend, replace this with: return bs58.encode(bytes)
-    // Placeholder (not production): throw to remind you to use bs58 lib.
-    throw new Error(
-      "Please install and use 'bs58' on the frontend to encode the signature."
-    );
-  }
-
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-green-100">
-        <div className="w-12 h-12 border-4 border-green-500 border-t-transparent rounded-full animate-spin"></div>
+        <div className="w-12 h-12 border-4 border-green-500 border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -52,8 +43,7 @@ export default function Dashboard() {
         className="absolute inset-0 bg-cover bg-center"
         style={{ backgroundImage: "url('/top_charger.png')" }}
       />
-      <div className="absolute inset-0 bg-gradient-to-b from-emerald-900/70 via-emerald-900/40 to-emerald-900/70"></div>
-
+      <div className="absolute inset-0 bg-gradient-to-b from-emerald-900/70 via-emerald-900/40 to-emerald-900/70" />
       <div className="relative z-10 flex flex-col items-center justify-start max-w-full sm:max-w-4xl">
         <h1 className="text-4xl sm:text-6xl md:text-7xl font-extrabold mb-6 sm:mb-8 bg-gradient-to-r from-white to-emerald-200 bg-clip-text text-transparent">
           TopCharger
@@ -64,12 +54,12 @@ export default function Dashboard() {
           <span className="font-extrabold text-emerald-300">open</span>, and{" "}
           <span className="font-extrabold text-emerald-300">everywhere</span>.
         </p>
-
         <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto items-center justify-center">
           <button
             onClick={handleGoogleLogin}
             className="w-full sm:w-auto px-6 py-3 rounded-lg shadow bg-emerald-600 text-white hover:bg-emerald-500 transition flex items-center justify-center gap-2"
           >
+            {/* Google G icon (kept) */}
             <svg
               className="w-5 h-5"
               viewBox="0 0 24 24"

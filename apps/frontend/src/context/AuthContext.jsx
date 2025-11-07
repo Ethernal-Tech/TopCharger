@@ -6,11 +6,11 @@ import { detectWallets, connectAndSignMessage } from "../utils/solanaWallet";
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);           // { id, email, role }
-  const [role, setRole] = useState(null);           // "HOST" | "DRIVER" | "UNSET" | null
-  const [wallet, setWallet] = useState(null);       // connected wallet pubkey (runtime only)
-  const [loading, setLoading] = useState(true);     // initial app load
-  const [walletSync, setWalletSync] = useState(false); // button spinner while trying fast-reconnect
+  const [user, setUser] = useState(null); // { id, email, role }
+  const [role, setRole] = useState(null); // "HOST" | "DRIVER" | "UNSET" | null
+  const [wallet, setWallet] = useState(null); // connected wallet pubkey (runtime only)
+  const [loading, setLoading] = useState(true); // initial app load
+  const [walletSync, setWalletSync] = useState(false); // spinner while trying fast-reconnect
 
   // -------------------------
   // Auth bootstrap
@@ -90,17 +90,21 @@ export const AuthProvider = ({ children }) => {
       const res = await fetch(`${BACKEND}/api/auth/link/solana/refresh`, {
         credentials: "include",
       });
+
       if (res.ok) {
         const { publicKey } = await res.json();
         setWallet(publicKey);
         return true;
       }
+      // 204 = no cookie (not an error) -> open modal
+      if (res.status === 204) return false;
+
+      return false;
     } catch {
-      // ignore
+      return false;
     } finally {
       setWalletSync(false);
     }
-    return false;
   }, [user]);
 
   // Full connect + link flow (the modal will call this)
@@ -127,7 +131,8 @@ export const AuthProvider = ({ children }) => {
     setWallet(null);
     try {
       if (window.solana?.disconnect) await window.solana.disconnect();
-      if (window.phantom?.solana?.disconnect) await window.phantom.solana.disconnect();
+      if (window.phantom?.solana?.disconnect)
+        await window.phantom.solana.disconnect();
       if (window.solflare?.disconnect) await window.solflare.disconnect();
     } catch {
       // ignore disconnect errors

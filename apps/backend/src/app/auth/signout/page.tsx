@@ -4,7 +4,10 @@ import { useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { signOut } from "next-auth/react";
 
-const DEFAULT_CB = process.env.VITE_FRONTEND_URL || "http://localhost:5173";
+const DEFAULT_CB =
+  process.env.VITE_FRONTEND_URL ||
+  process.env.FRONTEND_URL ||
+  "http://localhost:5173";
 
 /**
  * Instantly triggers NextAuth signOut on the backend origin (no confirmation),
@@ -15,7 +18,8 @@ export default function SignOutPage() {
   const cb = sp?.get("cb") || DEFAULT_CB;
 
   useEffect(() => {
-    // No prompt: POST to /api/auth/signout internally, then redirect to cb
+    // POST /api/auth/signout internally, then redirect to callback
+    // Note: NextAuth handles CSRF and cookie clearing.
     signOut({ callbackUrl: cb, redirect: true });
   }, [cb]);
 

@@ -1,9 +1,11 @@
+// apps/frontend/src/pages/SelectRole.jsx
 import { useState } from "react";
-
-const BACKEND = import.meta.env.VITE_BACKEND_URL;
+import { useNavigate } from "react-router-dom";
+import { BACKEND } from "../context/Constants.js";
 
 export default function SelectRole() {
-  const [role, setRole] = useState(null);
+  const navigate = useNavigate();
+  const [role, setRole] = useState(null); // "hosts" | "drivers"
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -37,6 +39,7 @@ export default function SelectRole() {
         : { fullName, phone };
 
     try {
+      // 1) Save role-specific profile
       const res = await fetch(`${BACKEND}/api/${role}/profile`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -45,11 +48,24 @@ export default function SelectRole() {
       });
 
       if (!res.ok) {
-        throw new Error((await res.text()) || "Failed to save profile");
+        const msg = await res.text().catch(() => "");
+        throw new Error(msg || "Failed to save profile");
       }
 
-      // Redirect correctly per role
-      window.location.href = role === "hosts" ? "/my-chargers" : "/chargers";
+      // 2) Refresh auth/user so guards see the new role immediately
+      const me = await fetch(`${BACKEND}/api/auth/me`, {
+        credentials: "include",
+      });
+      if (me.ok) {
+        const { user } = await me.json();
+        sessionStorage.setItem("tc_user", JSON.stringify(user));
+        sessionStorage.setItem("tc_role", user.role);
+      }
+
+      // 3) Navigate without full reload
+      navigate(role === "hosts" ? "/my-chargers" : "/chargers", {
+        replace: true,
+      });
     } catch (err) {
       setError(err.message || "Unknown error");
     } finally {
@@ -63,8 +79,8 @@ export default function SelectRole() {
       <div
         className="absolute inset-0 bg-cover bg-center"
         style={{ backgroundImage: "url('/top_charger.png')" }}
-      ></div>
-      <div className="absolute inset-0 bg-gradient-to-b from-emerald-900/70 via-emerald-900/40 to-emerald-900/70"></div>
+      />
+      <div className="absolute inset-0 bg-gradient-to-b from-emerald-900/70 via-emerald-900/40 to-emerald-900/70" />
 
       {/* Content */}
       <div className="relative z-10 bg-white/90 backdrop-blur-md rounded-2xl shadow-lg w-full max-w-md p-6 sm:p-8 text-center">
@@ -83,12 +99,14 @@ export default function SelectRole() {
 
             <div className="flex flex-col gap-4">
               <button
+                type="button"
                 onClick={() => handleRoleSelect("hosts")}
                 className="bg-green-700 text-white py-2 rounded font-semibold hover:bg-green-800 transition"
               >
                 I am a Host
               </button>
               <button
+                type="button"
                 onClick={() => handleRoleSelect("drivers")}
                 className="bg-blue-700 text-white py-2 rounded font-semibold hover:bg-blue-800 transition"
               >
@@ -98,7 +116,7 @@ export default function SelectRole() {
           </>
         ) : (
           <form onSubmit={handleSubmit} className="flex flex-col gap-4 mt-4">
-            {role === "hosts" && (
+            {role === "hosts" ? (
               <>
                 <input
                   type="text"
@@ -125,9 +143,7 @@ export default function SelectRole() {
                   className="p-2 rounded border border-green-300 focus:ring-2 focus:ring-green-500 w-full"
                 />
               </>
-            )}
-
-            {role === "drivers" && (
+            ) : (
               <>
                 <input
                   type="text"

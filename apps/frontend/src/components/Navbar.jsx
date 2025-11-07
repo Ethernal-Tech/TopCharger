@@ -18,10 +18,6 @@ export default function Navbar() {
 
   const [modalOpen, setModalOpen] = useState(false);
 
-  useEffect(() => {
-    if (!loading && !user) navigate("/");
-  }, [loading, user, navigate]);
-
   // When the modal finishes linking on the backend, update UI immediately
   useEffect(() => {
     const onLinked = async () => {
@@ -34,10 +30,12 @@ export default function Navbar() {
   }, [tryFastReconnect]);
 
   const handleWalletClick = async () => {
-    if (!wallet) {
-      const ok = await tryFastReconnect();
-      if (!ok) setModalOpen(true); // open modal if fast connect fails
-    }
+    // Prevent duplicate actions
+    if (wallet || walletSync) return;
+
+    // Try cookie-based fast reconnect first; if not present, open modal
+    const ok = await tryFastReconnect();
+    if (!ok) setModalOpen(true);
   };
 
   return (
@@ -93,24 +91,24 @@ export default function Navbar() {
         </div>
 
         {/* Right */}
-        {user && (
+        {user && role !== "UNSET" && (
           <div className="flex items-center gap-4 flex-wrap">
-            {!wallet && (
+            {!wallet ? (
               <button
+                type="button"
                 onClick={handleWalletClick}
                 disabled={walletSync}
                 className="bg-green-700 text-white px-4 py-2 rounded hover:bg-green-800 disabled:opacity-50"
               >
                 {walletSync ? "Connecting…" : "Connect Wallet"}
               </button>
-            )}
-
-            {wallet && (
+            ) : (
               <>
                 <span className="text-sm text-green-900 bg-green-100 px-2 py-1 rounded">
                   {wallet.slice(0, 4)}…{wallet.slice(-4)}
                 </span>
                 <button
+                  type="button"
                   onClick={disconnectWallet}
                   className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
                 >
@@ -120,6 +118,7 @@ export default function Navbar() {
             )}
 
             <button
+              type="button"
               onClick={() => navigate("/logout")}
               className="bg-green-700 text-white px-4 py-2 rounded hover:bg-green-800"
             >
